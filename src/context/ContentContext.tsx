@@ -24,14 +24,48 @@ export interface Product {
   icon: string;
   title: string;
   description: string;
-  image?: string;   // URL ou base64 da foto principal
+  image?: string;
+  images?: string[];
   tag?: string;
   categoryIds: number[];
+  active?: boolean; // undefined = true (compatibilidade com dados antigos)
+}
+
+export interface HomeStat {
+  value: string;
+  label: string;
+}
+
+export interface HomeFeature {
+  icon: string;
+  title: string;
+  desc: string;
+}
+
+export interface SobreTimelineItem {
+  year: string;
+  title: string;
+  desc: string;
+}
+
+export interface SobreContent {
+  heroTitle: string;
+  heroSubtitle: string;
+  especialidades: string[];
+  timelineTitle: string;
+  timeline: SobreTimelineItem[];
 }
 
 export interface HomeContent {
   carouselImages: CarouselImage[];
   companyDescription: string;
+  carouselTagline: string;
+  carouselTitle: string;
+  carouselSubtitle: string;
+  sobreTitle: string;
+  stats: HomeStat[];
+  featuresTitle: string;
+  features: HomeFeature[];
 }
 
 export interface ProductsContent {
@@ -41,17 +75,17 @@ export interface ProductsContent {
 }
 
 export interface ContentState {
-  published: { home: HomeContent; products: ProductsContent; };
-  draft:     { home: HomeContent; products: ProductsContent; };
+  published: { home: HomeContent; products: ProductsContent; sobre: SobreContent; };
+  draft:     { home: HomeContent; products: ProductsContent; sobre: SobreContent; };
   categories: Category[];
 }
 
 export interface ContentContextType {
   content: ContentState;
-  updateDraft:    (page: 'home' | 'products', data: Partial<HomeContent> | Partial<ProductsContent>) => void;
-  publishDirect:  (page: 'home' | 'products', data: Partial<HomeContent> | Partial<ProductsContent>) => void;
-  publish:        (page: 'home' | 'products') => void;
-  discardDraft:   (page: 'home' | 'products') => void;
+  updateDraft:    (page: 'home' | 'products' | 'sobre', data: Partial<HomeContent> | Partial<ProductsContent> | Partial<SobreContent>) => void;
+  publishDirect:  (page: 'home' | 'products' | 'sobre', data: Partial<HomeContent> | Partial<ProductsContent> | Partial<SobreContent>) => void;
+  publish:        (page: 'home' | 'products' | 'sobre') => void;
+  discardDraft:   (page: 'home' | 'products' | 'sobre') => void;
   addCategory:    (name: string, color: string) => void;
   updateCategory: (id: number, name: string, color: string) => void;
   removeCategory: (id: number) => void;
@@ -82,6 +116,23 @@ const defaultHomeContent: HomeContent = {
 Nossa equipe é formada por pilotos certificados, engenheiros aeronáuticos e técnicos especializados, garantindo operações de altíssima precisão. Somos homologados pela ANAC e operamos com frotas modernas, constantemente atualizadas para oferecer o melhor em tecnologia aeronáutica.
 
 Especialidades: Aviação Agrícola, Calibração de Instrumentos, Testes STOL, Inspeções Técnicas e Consultoria Aeronáutica.`,
+  carouselTagline:  'Excelência em Aviação',
+  carouselTitle:    'Precisão que eleva seus resultados',
+  carouselSubtitle: 'Soluções aeronáuticas de alta performance para o agronegócio e além',
+  sobreTitle: 'Sobre a AeroTech Brasil',
+  stats: [
+    { value: '18+',  label: 'Anos de Experiência' },
+    { value: '500+', label: 'Clientes Atendidos'  },
+    { value: '98%',  label: 'Satisfação'           },
+    { value: 'ANAC', label: 'Homologado'           },
+  ],
+  featuresTitle: 'Diferenciais que fazem a diferença',
+  features: [
+    { icon: '🛡️', title: 'Segurança Certificada', desc: 'Operações homologadas pela ANAC com os mais rígidos padrões de segurança aeronáutica.' },
+    { icon: '🎯', title: 'Precisão GPS',           desc: 'Tecnologia de posicionamento de última geração para aplicações com erro inferior a 30 cm.' },
+    { icon: '⚡', title: 'Alta Produtividade',     desc: 'Cobertura de até 3.000 hectares por dia com nossa frota de aeronaves modernas.' },
+    { icon: '🌱', title: 'Sustentabilidade',       desc: 'Redução de até 40% no consumo de defensivos com aplicação aérea de precisão.' },
+  ],
 };
 
 const defaultProductsContent: ProductsContent = {
@@ -97,11 +148,34 @@ const defaultProductsContent: ProductsContent = {
   ],
 };
 
+const defaultSobreContent: SobreContent = {
+  heroTitle:    'Sobre a AeroTech Brasil',
+  heroSubtitle: 'Quase duas décadas de excelência em serviços aeronáuticos e aviação agrícola.',
+  especialidades: [
+    'Aviação Agrícola de Precisão',
+    'Calibração de Instrumentos Aeronáuticos',
+    'Testes STOL Certificados',
+    'Inspeções Técnicas Completas',
+    'Consultoria Aeronáutica',
+    'Operações de Pulverização Aérea',
+    'Monitoramento Aéreo por Drones',
+    'Transporte Aéreo Executivo',
+  ],
+  timelineTitle: 'Uma história de crescimento',
+  timeline: [
+    { year: '2005', title: 'Fundação',             desc: 'Criada por pilotos e engenheiros apaixonados por aviação no Paraná.' },
+    { year: '2009', title: 'Homologação ANAC',      desc: 'Obtemos as primeiras certificações junto à Agência Nacional de Aviação Civil.' },
+    { year: '2014', title: 'Expansão Regional',     desc: 'Ampliamos operações para MS, MT e GO, atendendo grandes produtores rurais.' },
+    { year: '2019', title: 'Modernização da Frota', desc: 'Investimento de R$ 15M em aeronaves de última geração com GPS de alta precisão.' },
+    { year: '2023', title: 'Drones Agrícolas',      desc: 'Incorporamos drones de alta capacidade à nossa frota operacional.' },
+  ],
+};
+
 const defaultPublished: ContentState['published'] = {
-  home: defaultHomeContent, products: defaultProductsContent,
+  home: defaultHomeContent, products: defaultProductsContent, sobre: defaultSobreContent,
 };
 const defaultDraft: ContentState['draft'] = {
-  home: structuredClone(defaultHomeContent), products: structuredClone(defaultProductsContent),
+  home: structuredClone(defaultHomeContent), products: structuredClone(defaultProductsContent), sobre: structuredClone(defaultSobreContent),
 };
 
 /* ─── CONTEXT ────────────────────────────────────────────────────────────────── */
@@ -116,13 +190,13 @@ export function ContentProvider({ children }: { children: ReactNode }) {
   const content: ContentState = { published, draft, categories };
 
   const updateDraft = useCallback(
-    (page: 'home' | 'products', data: Partial<HomeContent> | Partial<ProductsContent>) => {
+    (page: 'home' | 'products' | 'sobre', data: any) => {
       setDraft((prev) => ({ ...prev, [page]: { ...prev[page], ...data } }));
     }, [setDraft]
   );
 
   const publishDirect = useCallback(
-    (page: 'home' | 'products', data: Partial<HomeContent> | Partial<ProductsContent>) => {
+    (page: 'home' | 'products' | 'sobre', data: any) => {
       setDraft((prevDraft) => {
         const snapshot = structuredClone({ ...prevDraft[page], ...data });
         setPublished((prev) => ({ ...prev, [page]: snapshot }));
@@ -132,7 +206,7 @@ export function ContentProvider({ children }: { children: ReactNode }) {
   );
 
   const publish = useCallback(
-    (page: 'home' | 'products') => {
+    (page: 'home' | 'products' | 'sobre') => {
       setDraft((prevDraft) => {
         const snapshot = structuredClone(prevDraft[page]);
         setPublished((prev) => ({ ...prev, [page]: snapshot }));
@@ -142,7 +216,7 @@ export function ContentProvider({ children }: { children: ReactNode }) {
   );
 
   const discardDraft = useCallback(
-    (page: 'home' | 'products') => {
+    (page: 'home' | 'products' | 'sobre') => {
       setPublished((prevPublished) => {
         const snapshot = structuredClone(prevPublished[page]);
         setDraft((prev) => ({ ...prev, [page]: snapshot }));

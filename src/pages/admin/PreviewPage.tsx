@@ -33,32 +33,32 @@ function PreviewBanner({ page }: { page: string }) {
 }
 
 /* ── Preview: Home ── */
-const STATS = [
-  { value: '18+',  label: 'Anos de Experiência' },
-  { value: '500+', label: 'Clientes Atendidos'  },
-  { value: '98%',  label: 'Satisfação'           },
-  { value: 'ANAC', label: 'Homologado'           },
-];
-
 function PreviewHome() {
   const { content } = useContent();
-  const { carouselImages, companyDescription } = content.draft.home;
+  const {
+    carouselImages, companyDescription,
+    carouselTagline, carouselTitle, carouselSubtitle,
+    sobreTitle, stats, featuresTitle, features,
+  } = content.draft.home;
+
+  const safeStats    = stats    ?? [];
+  const safeFeatures = features ?? [];
 
   return (
     <div className="page-wrapper" style={{ paddingTop: 0 }}>
-      <Carousel images={carouselImages} />
+      <Carousel images={carouselImages} tagline={carouselTagline ?? ''} title={carouselTitle ?? ''} subtitle={carouselSubtitle ?? ''} />
       <section className="section home__sobre" style={{ background: '#fff' }}>
         <div className="container">
           <p className="section-label">Quem Somos</p>
-          <h2 className="section-title">Sobre a AeroTech Brasil</h2>
+          <h2 className="section-title">{sobreTitle ?? 'Sobre a AeroTech Brasil'}</h2>
           <div className="section-divider" />
           <div className="home__sobre-grid">
             <div className="home__sobre-text">
               <p className="home__description">{companyDescription}</p>
             </div>
             <div className="home__stats">
-              {STATS.map((s) => (
-                <div key={s.label} className="home__stat-card">
+              {safeStats.map((s, i) => (
+                <div key={i} className="home__stat-card">
                   <span className="home__stat-value">{s.value}</span>
                   <span className="home__stat-label">{s.label}</span>
                 </div>
@@ -67,6 +67,26 @@ function PreviewHome() {
           </div>
         </div>
       </section>
+
+      {safeFeatures.length > 0 && (
+        <section className="home__features">
+          <div className="container">
+            <p className="section-label" style={{ color: 'var(--gold-light)' }}>Por que nos escolher</p>
+            <h2 className="section-title" style={{ color: 'var(--white)' }}>{featuresTitle ?? 'Diferenciais que fazem a diferença'}</h2>
+            <div className="section-divider" style={{ background: 'var(--gold)' }} />
+            <div className="home__features-grid">
+              {safeFeatures.map((f, i) => (
+                <div key={i} className="home__feature-card">
+                  <div className="home__feature-icon">{f.icon}</div>
+                  <h3 className="home__feature-title">{f.title}</h3>
+                  <p className="home__feature-desc">{f.desc}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
       <Footer />
     </div>
   );

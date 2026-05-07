@@ -5,9 +5,12 @@ import './Carousel.css';
 interface CarouselProps {
   images: CarouselImage[];
   autoPlayMs?: number;
+  tagline?: string;
+  title?: string;
+  subtitle?: string;
 }
 
-export default function Carousel({ images, autoPlayMs = 5000 }: CarouselProps) {
+export default function Carousel({ images, autoPlayMs = 5000, tagline, title, subtitle }: CarouselProps) {
   const [current, setCurrent] = useState(0);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -42,8 +45,10 @@ export default function Carousel({ images, autoPlayMs = 5000 }: CarouselProps) {
     );
   }
 
+  const hasText = !!(tagline || title || subtitle);
+
   return (
-    <div className="carousel" aria-label="Carrossel de imagens">
+    <div className={`carousel ${hasText ? '' : 'carousel--no-text'}`} aria-label="Carrossel de imagens">
       {/* Track */}
       <div
         className="carousel__track"
@@ -57,21 +62,19 @@ export default function Carousel({ images, autoPlayMs = 5000 }: CarouselProps) {
               loading={i === 0 ? 'eager' : 'lazy'}
               className="carousel__img"
             />
-            <div className="carousel__overlay" />
+            {hasText && <div className="carousel__overlay" />}
           </div>
         ))}
       </div>
 
-      {/* Content overlay */}
-      <div className="carousel__content">
-        <p className="carousel__tagline">Excelência em Aviação</p>
-        <h1 className="carousel__title">
-          Precisão que <span>eleva</span><br />seus resultados
-        </h1>
-        <p className="carousel__subtitle">
-          Soluções aeronáuticas de alta performance para o agronegócio e além
-        </p>
-      </div>
+      {/* Content overlay — only when there is text */}
+      {hasText && (
+        <div className="carousel__content">
+          {tagline   && <p className="carousel__tagline">{tagline}</p>}
+          {title     && <h1 className="carousel__title">{title}</h1>}
+          {subtitle  && <p className="carousel__subtitle">{subtitle}</p>}
+        </div>
+      )}
 
       {/* Arrows */}
       <button className="carousel__btn carousel__btn--prev" onClick={handlePrev} aria-label="Imagem anterior">

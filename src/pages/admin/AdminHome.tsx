@@ -1,10 +1,10 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useContent } from '@/hooks/useContent';
-import { CarouselImage, Product, Category } from '@/context/ContentContext';
+import { CarouselImage, Product, Category, HomeStat, HomeFeature, SobreTimelineItem } from '@/context/ContentContext';
 import './AdminHome.css';
 
-type Tab = 'home' | 'produtos' | 'categorias';
+type Tab = 'home' | 'sobre' | 'produtos' | 'categorias';
 
 /* ─── Toast ── */
 function Toast({ msg }: { msg: string }) {
@@ -74,14 +74,16 @@ function CategorySelector({ selected, categories, onChange }: { selected: number
 }
 
 /* ─── Product Row ── */
-function ProductRow({ product, categories, onChange, onCategoriesChange, onRemove }: {
+function ProductRow({ product, categories, onChange, onCategoriesChange, onRemove, onGalleryChange }: {
   product: Product;
   categories: Category[];
   onChange: (id: number, field: keyof Product, value: string) => void;
   onCategoriesChange: (id: number, ids: number[]) => void;
+  onGalleryChange: (id: number, images: string[]) => void;
   onRemove: (id: number) => void;
 }) {
-  const fileRef = useRef<HTMLInputElement>(null);
+  const fileRef    = useRef<HTMLInputElement>(null);
+  const galleryRef = useRef<HTMLInputElement>(null);
 
   const handleImageFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -92,9 +94,41 @@ function ProductRow({ product, categories, onChange, onCategoriesChange, onRemov
     e.target.value = '';
   };
 
+  const handleGalleryFiles = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? []);
+    if (!files.length) return;
+    const current = product.images ?? [];
+    let loaded = 0;
+    const results: string[] = [];
+    files.forEach((file, i) => {
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        results[i] = ev.target?.result as string;
+        loaded++;
+        if (loaded === files.length) {
+          onGalleryChange(product.id, [...current, ...results]);
+        }
+      };
+      reader.readAsDataURL(file);
+    });
+    e.target.value = '';
+  };
+
+  const removeGalleryImg = (idx: number) => {
+    const updated = (product.images ?? []).filter((_, i) => i !== idx);
+    onGalleryChange(product.id, updated);
+  };
+
+  const addGalleryUrl = (url: string) => {
+    if (!url.trim()) return;
+    onGalleryChange(product.id, [...(product.images ?? []), url.trim()]);
+  };
+
+  const [galleryUrl, setGalleryUrl] = useState('');
+
   return (
     <div className="admin-product-row">
-      {/* Header: ícone, título, tag, remover */}
+      {/* Header */}
       <div className="admin-product-row__top">
         <input className="form-input admin-product-row__icon" placeholder="🔧" value={product.icon} onChange={(e) => onChange(product.id, 'icon', e.target.value)} maxLength={4} />
         <input className="form-input admin-product-row__title" placeholder="Título..." value={product.title} onChange={(e) => onChange(product.id, 'title', e.target.value)} />
@@ -102,12 +136,10 @@ function ProductRow({ product, categories, onChange, onCategoriesChange, onRemov
         <button className="btn btn-danger admin-product-row__del" onClick={() => onRemove(product.id)}>✕</button>
       </div>
 
-      {/* Corpo: imagem + descrição lado a lado */}
+      {/* Corpo: imagem principal + descrição */}
       <div className="admin-product-row__body">
-
-        {/* Coluna da imagem */}
         <div className="admin-product-row__img-col">
-          <span className="admin-product-row__cats-label">Foto do Produto</span>
+          <span className="admin-product-row__cats-label">Foto Principal</span>
           <div className="admin-product-row__img-preview">
             {product.image
               ? <img src={product.image} alt={product.title} />
@@ -132,7 +164,6 @@ function ProductRow({ product, categories, onChange, onCategoriesChange, onRemov
           />
         </div>
 
-        {/* Coluna da descrição */}
         <div className="admin-product-row__desc-col">
           <span className="admin-product-row__cats-label">Descrição</span>
           <textarea className="form-textarea admin-product-row__desc" placeholder="Descrição do produto..." value={product.description} onChange={(e) => onChange(product.id, 'description', e.target.value)} rows={5} />
@@ -140,6 +171,45 @@ function ProductRow({ product, categories, onChange, onCategoriesChange, onRemov
             <span className="admin-product-row__cats-label">Categorias:</span>
             <CategorySelector selected={product.categoryIds ?? []} categories={categories} onChange={(ids) => onCategoriesChange(product.id, ids)} />
           </div>
+        </div>
+      </div>
+
+      {/* Galeria extra */}
+      <div className="admin-product-row__gallery">
+        <span className="admin-product-row__cats-label">
+          🖼 Galeria de Imagens <span style={{ fontWeight: 400, color: 'var(--gray-400)' }}>(visíveis no modal "Saiba Mais")</span>
+        </span>
+
+        {(product.images ?? []).length > 0 && (
+          <div className="admin-product-row__gallery-grid">
+            {(product.images ?? []).map((img, idx) => (
+              <div key={idx} className="admin-product-row__gallery-item">
+                <img src={img} alt={`galeria ${idx + 1}`} />
+                <button className="admin-img-card__remove" onClick={() => removeGalleryImg(idx)}>✕</button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div className="admin-product-row__gallery-add">
+          <input ref={galleryRef} type="file" accept="image/*" multiple style={{ display: 'none' }} onChange={handleGalleryFiles} />
+          <button className="btn admin__upload-btn" style={{ fontSize: '11px', padding: '6px 12px' }} onClick={() => galleryRef.current?.click()}>
+            📁 Carregar imagens
+          </button>
+          <input
+            className="form-input"
+            style={{ fontSize: '12px', flex: 1 }}
+            placeholder="Ou cole URL e pressione Enter..."
+            value={galleryUrl}
+            onChange={(e) => setGalleryUrl(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') { addGalleryUrl(galleryUrl); setGalleryUrl(''); }
+            }}
+          />
+          <button className="btn btn-primary" style={{ fontSize: '12px', padding: '8px 14px' }}
+            onClick={() => { addGalleryUrl(galleryUrl); setGalleryUrl(''); }}>
+            + Add
+          </button>
         </div>
       </div>
     </div>
@@ -261,14 +331,30 @@ export default function AdminHome() {
   const [searchParams] = useSearchParams();
   const { content, updateDraft, publishDirect, discardDraft, addCategory, updateCategory, removeCategory } = useContent();
 
-  const [homeImages,   setHomeImages]   = useState<CarouselImage[]>(structuredClone(content.draft.home.carouselImages));
-  const [homeText,     setHomeText]     = useState(content.draft.home.companyDescription);
+  const [homeImages,       setHomeImages]       = useState<CarouselImage[]>(structuredClone(content.draft.home.carouselImages));
+  const [homeText,         setHomeText]         = useState(content.draft.home.companyDescription);
+  const [carouselTagline,  setCarouselTagline]  = useState(content.draft.home.carouselTagline  ?? '');
+  const [carouselTitle,    setCarouselTitle]    = useState(content.draft.home.carouselTitle    ?? '');
+  const [carouselSubtitle, setCarouselSubtitle] = useState(content.draft.home.carouselSubtitle ?? '');
+  const [sobreTitle,       setSobreTitle]       = useState(content.draft.home.sobreTitle       ?? 'Sobre a AeroTech Brasil');
+  const [stats,            setStats]            = useState<HomeStat[]>(structuredClone(content.draft.home.stats ?? []));
+  const [featuresTitle,    setFeaturesTitle]    = useState(content.draft.home.featuresTitle    ?? 'Diferenciais que fazem a diferença');
+  const [features,         setFeatures]         = useState<HomeFeature[]>(structuredClone(content.draft.home.features ?? []));
   const [products,     setProducts]     = useState<Product[]>(structuredClone(content.draft.products.products));
   const [prodHeadline, setProdHeadline] = useState(content.draft.products.headline);
   const [prodSubline,  setProdSubline]  = useState(content.draft.products.subheadline);
   const [newImageUrl,  setNewImageUrl]  = useState('');
   const [toast,        setToast]        = useState('');
   const [showModal,    setShowModal]    = useState(false);
+  const [editingProductId, setEditingProductId] = useState<number | null>(null);
+  const [prodSearch,   setProdSearch]   = useState('');
+
+  // ── Sobre state ──
+  const [sobreHeroTitle,    setSobreHeroTitle]    = useState(content.draft.sobre?.heroTitle    ?? 'Sobre a AeroTech Brasil');
+  const [sobreHeroSubtitle, setSobreHeroSubtitle] = useState(content.draft.sobre?.heroSubtitle ?? '');
+  const [especialidades,    setEspecialidades]    = useState<string[]>(structuredClone(content.draft.sobre?.especialidades ?? []));
+  const [timelineTitle,     setTimelineTitle]     = useState(content.draft.sobre?.timelineTitle ?? 'Uma história de crescimento');
+  const [timeline,          setTimeline]          = useState<SobreTimelineItem[]>(structuredClone(content.draft.sobre?.timeline ?? []));
 
   const [activeTab, setActiveTab] = useState<Tab>(() => {
     const t = searchParams.get('tab') as Tab | null;
@@ -288,7 +374,23 @@ export default function AdminHome() {
   const isDirty = (() => {
     if (activeTab === 'home') {
       const pub = content.published.home;
-      return JSON.stringify(homeImages) !== JSON.stringify(pub.carouselImages) || homeText !== pub.companyDescription;
+      return JSON.stringify(homeImages) !== JSON.stringify(pub.carouselImages)
+        || homeText !== pub.companyDescription
+        || carouselTagline  !== (pub.carouselTagline  ?? '')
+        || carouselTitle    !== (pub.carouselTitle    ?? '')
+        || carouselSubtitle !== (pub.carouselSubtitle ?? '')
+        || sobreTitle       !== (pub.sobreTitle       ?? '')
+        || JSON.stringify(stats)    !== JSON.stringify(pub.stats    ?? [])
+        || featuresTitle    !== (pub.featuresTitle    ?? '')
+        || JSON.stringify(features) !== JSON.stringify(pub.features ?? []);
+    }
+    if (activeTab === 'sobre') {
+      const pub = content.published.sobre ?? {};
+      return sobreHeroTitle    !== ((pub as any).heroTitle    ?? '')
+        || sobreHeroSubtitle !== ((pub as any).heroSubtitle ?? '')
+        || JSON.stringify(especialidades) !== JSON.stringify((pub as any).especialidades ?? [])
+        || timelineTitle    !== ((pub as any).timelineTitle ?? '')
+        || JSON.stringify(timeline)       !== JSON.stringify((pub as any).timeline       ?? []);
     }
     if (activeTab === 'produtos') {
       const pub = content.published.products;
@@ -297,16 +399,23 @@ export default function AdminHome() {
     return false;
   })();
 
+  const sobrePayload = () => ({
+    heroTitle: sobreHeroTitle, heroSubtitle: sobreHeroSubtitle,
+    especialidades, timelineTitle, timeline,
+  });
+
   const handlePreview = () => {
-    if (activeTab === 'home') updateDraft('home', { carouselImages: homeImages, companyDescription: homeText });
+    if (activeTab === 'home') updateDraft('home', { carouselImages: homeImages, companyDescription: homeText, carouselTagline, carouselTitle, carouselSubtitle, sobreTitle, stats, featuresTitle, features });
+    else if (activeTab === 'sobre') updateDraft('sobre', sobrePayload());
     else if (activeTab === 'produtos') updateDraft('products', { products, headline: prodHeadline, subheadline: prodSubline });
-    const page = activeTab === 'categorias' ? 'produtos' : activeTab;
+    const page = (activeTab === 'categorias' || activeTab === 'sobre') ? activeTab === 'sobre' ? 'sobre' : 'produtos' : activeTab;
     window.open(`/preview?page=${page}`, '_blank');
   };
 
   const confirmPublish = () => {
     setShowModal(false);
-    if (activeTab === 'home') publishDirect('home', { carouselImages: homeImages, companyDescription: homeText });
+    if (activeTab === 'home') publishDirect('home', { carouselImages: homeImages, companyDescription: homeText, carouselTagline, carouselTitle, carouselSubtitle, sobreTitle, stats, featuresTitle, features });
+    else if (activeTab === 'sobre') publishDirect('sobre', sobrePayload());
     else if (activeTab === 'produtos') publishDirect('products', { products, headline: prodHeadline, subheadline: prodSubline });
     showToast('✅ Publicado! O site já exibe o novo conteúdo.');
   };
@@ -316,7 +425,22 @@ export default function AdminHome() {
       const pub = content.published.home;
       setHomeImages(structuredClone(pub.carouselImages));
       setHomeText(pub.companyDescription);
+      setCarouselTagline(pub.carouselTagline   ?? '');
+      setCarouselTitle(pub.carouselTitle       ?? '');
+      setCarouselSubtitle(pub.carouselSubtitle ?? '');
+      setSobreTitle(pub.sobreTitle             ?? '');
+      setStats(structuredClone(pub.stats       ?? []));
+      setFeaturesTitle(pub.featuresTitle       ?? '');
+      setFeatures(structuredClone(pub.features ?? []));
       discardDraft('home');
+    } else if (activeTab === 'sobre') {
+      const pub = content.published.sobre ?? {} as any;
+      setSobreHeroTitle(pub.heroTitle       ?? '');
+      setSobreHeroSubtitle(pub.heroSubtitle ?? '');
+      setEspecialidades(structuredClone(pub.especialidades ?? []));
+      setTimelineTitle(pub.timelineTitle    ?? '');
+      setTimeline(structuredClone(pub.timeline ?? []));
+      discardDraft('sobre');
     } else if (activeTab === 'produtos') {
       const pub = content.published.products;
       setProducts(structuredClone(pub.products));
@@ -355,15 +479,22 @@ export default function AdminHome() {
   const removeImage = (id: number) => setHomeImages((prev) => prev.filter((img) => img.id !== id));
   const updateAlt   = (id: number, alt: string) => setHomeImages((prev) => prev.map((img) => img.id === id ? { ...img, alt } : img));
 
-  const addProduct    = () => setProducts((prev) => [...prev, { id: Date.now(), icon: '⭐', title: 'Novo Produto', description: 'Descrição...', categoryIds: [] }]);
+  const addProduct    = () => {
+    const newId = Date.now();
+    setProducts((prev) => [...prev, { id: newId, icon: '⭐', title: 'Novo Produto', description: 'Descrição...', categoryIds: [], images: [], active: true }]);
+    setEditingProductId(newId);
+  };
   const updateProduct = (id: number, field: keyof Product, value: string) => setProducts((prev) => prev.map((p) => p.id === id ? { ...p, [field]: value } : p));
   const updateProductCategories = (id: number, categoryIds: number[]) => setProducts((prev) => prev.map((p) => p.id === id ? { ...p, categoryIds } : p));
+  const updateProductGallery    = (id: number, images: string[])       => setProducts((prev) => prev.map((p) => p.id === id ? { ...p, images } : p));
+  const toggleProductActive     = (id: number)                         => setProducts((prev) => prev.map((p) => p.id === id ? { ...p, active: p.active === false ? true : false } : p));
   const removeProduct = (id: number) => setProducts((prev) => prev.filter((p) => p.id !== id));
 
   const showPublishBtn = activeTab !== 'categorias';
 
   const TABS: { key: Tab; label: string; icon: string }[] = [
     { key: 'home',       label: 'Home',       icon: '🏠' },
+    { key: 'sobre',      label: 'Sobre',      icon: '📋' },
     { key: 'categorias', label: 'Categorias', icon: '🏷' },
     { key: 'produtos',   label: 'Produtos',   icon: '📦' },
   ];
@@ -391,11 +522,33 @@ export default function AdminHome() {
             <p className="admin__sidebar-section-label">Conteúdo</p>
             {TABS.map(({ key, label, icon }) => {
               const hasDot = key !== 'categorias' && key !== activeTab && (() => {
-                const pub = key === 'home' ? content.published.home : content.published.products;
-                const local = key === 'home'
-                  ? { carouselImages: homeImages, companyDescription: homeText }
-                  : { products, headline: prodHeadline, subheadline: prodSubline };
-                return JSON.stringify(local) !== JSON.stringify(pub);
+                if (key === 'home') {
+                  const pub = content.published.home;
+                  return JSON.stringify(homeImages) !== JSON.stringify(pub.carouselImages)
+                    || homeText         !== pub.companyDescription
+                    || carouselTagline  !== (pub.carouselTagline  ?? '')
+                    || carouselTitle    !== (pub.carouselTitle    ?? '')
+                    || carouselSubtitle !== (pub.carouselSubtitle ?? '')
+                    || sobreTitle       !== (pub.sobreTitle       ?? '')
+                    || JSON.stringify(stats)    !== JSON.stringify(pub.stats    ?? [])
+                    || featuresTitle    !== (pub.featuresTitle    ?? '')
+                    || JSON.stringify(features) !== JSON.stringify(pub.features ?? []);
+                }
+                if (key === 'sobre') {
+                  const pub = (content.published.sobre ?? {}) as any;
+                  return sobreHeroTitle    !== (pub.heroTitle       ?? '')
+                    || sobreHeroSubtitle   !== (pub.heroSubtitle    ?? '')
+                    || JSON.stringify(especialidades) !== JSON.stringify(pub.especialidades ?? [])
+                    || timelineTitle       !== (pub.timelineTitle   ?? '')
+                    || JSON.stringify(timeline) !== JSON.stringify(pub.timeline ?? []);
+                }
+                if (key === 'produtos') {
+                  const pub = content.published.products;
+                  return JSON.stringify(products) !== JSON.stringify(pub.products)
+                    || prodHeadline !== pub.headline
+                    || prodSubline  !== pub.subheadline;
+                }
+                return false;
               })();
               return (
                 <button
@@ -443,11 +596,9 @@ export default function AdminHome() {
             )}
           </div>
 
-          {isDirty && (
-            <div className="admin__dirty-bar">
-              ✏️ Alterações não publicadas — clique em <strong>Publicar</strong> para torná-las visíveis.
-            </div>
-          )}
+          <div className={`admin__dirty-bar ${isDirty ? 'admin__dirty-bar--visible' : ''}`}>
+            ✏️ Alterações não publicadas — clique em <strong>Publicar</strong> para torná-las visíveis.
+          </div>
 
           <div className="admin__scroll">
           <main className="admin__body">
@@ -494,15 +645,166 @@ export default function AdminHome() {
                   <p className="admin__hint">💡 Use <strong>unsplash.com</strong> para imagens gratuitas por URL.</p>
                 </div>
 
+                {/* Texto do carrossel */}
+                <div className="admin__section">
+                  <h2 className="admin__section-title">✍ Texto do Carrossel</h2>
+                  <p className="admin__section-desc" style={{ marginBottom: '1.25rem' }}>
+                    Deixe em branco para exibir somente as imagens, sem escurecê-las.
+                  </p>
+                  <div className="admin__field">
+                    <label className="form-label">Tagline (linha pequena acima do título)</label>
+                    <input className="form-input" placeholder="Ex: Excelência em Aviação" value={carouselTagline} onChange={(e) => setCarouselTagline(e.target.value)} />
+                  </div>
+                  <div className="admin__field">
+                    <label className="form-label">Título principal</label>
+                    <input className="form-input" placeholder="Ex: Precisão que eleva seus resultados" value={carouselTitle} onChange={(e) => setCarouselTitle(e.target.value)} />
+                  </div>
+                  <div className="admin__field">
+                    <label className="form-label">Subtítulo</label>
+                    <input className="form-input" placeholder="Ex: Soluções aeronáuticas de alta performance..." value={carouselSubtitle} onChange={(e) => setCarouselSubtitle(e.target.value)} />
+                  </div>
+                </div>
+
+                {/* Seção Sobre — título + descrição juntos */}
+                <div className="admin__section">
+                  <h2 className="admin__section-title">🏷 Seção "Sobre"</h2>
+                  <div className="admin__field">
+                    <label className="form-label">Título da Seção</label>
+                    <input className="form-input" value={sobreTitle} onChange={(e) => setSobreTitle(e.target.value)} placeholder="Sobre a AeroTech Brasil" />
+                  </div>
+                  <div className="admin__field">
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                      <label className="form-label" style={{ margin: 0 }}>Descrição da Empresa</label>
+                      <span className="admin__count">{homeText.length} chars</span>
+                    </div>
+                    <p className="admin__section-desc" style={{ marginBottom: 8 }}>Texto da seção "Sobre" na Home.</p>
+                    <textarea className="form-textarea" value={homeText} onChange={(e) => setHomeText(e.target.value)} rows={10} placeholder="Digite a descrição..." />
+                  </div>
+
+                  <label className="form-label" style={{ marginTop: '1rem', display: 'block' }}>Cards de Estatísticas</label>
+                  <div className="admin-stats-grid">
+                    {stats.map((s, i) => (
+                      <div key={i} className="admin-stat-row">
+                        <input className="form-input admin-stat-row__value" placeholder="18+" value={s.value}
+                          onChange={(e) => setStats(prev => prev.map((x, j) => j === i ? { ...x, value: e.target.value } : x))} />
+                        <input className="form-input admin-stat-row__label" placeholder="Anos de Experiência" value={s.label}
+                          onChange={(e) => setStats(prev => prev.map((x, j) => j === i ? { ...x, label: e.target.value } : x))} />
+                        <button className="btn btn-danger" style={{ padding: '8px 12px' }}
+                          onClick={() => setStats(prev => prev.filter((_, j) => j !== i))}>✕</button>
+                      </div>
+                    ))}
+                  </div>
+                  <button className="btn btn-primary" style={{ marginTop: '10px', fontSize: '13px' }}
+                    onClick={() => setStats(prev => [...prev, { value: '', label: '' }])}>
+                    + Adicionar Card
+                  </button>
+                </div>
+
+                {/* Seção Diferenciais */}
+                <div className="admin__section">
+                  <h2 className="admin__section-title">⚡ Seção "Diferenciais"</h2>
+                  <div className="admin__field">
+                    <label className="form-label">Título da Seção</label>
+                    <input className="form-input" value={featuresTitle} onChange={(e) => setFeaturesTitle(e.target.value)} placeholder="Diferenciais que fazem a diferença" />
+                  </div>
+
+                  <label className="form-label" style={{ marginTop: '1rem', display: 'block' }}>Cards de Diferenciais</label>
+                  <div className="admin-features-list">
+                    {features.map((f, i) => (
+                      <div key={i} className="admin-feature-row">
+                        <div className="admin-feature-row__top">
+                          <input className="form-input admin-feature-row__icon" placeholder="🛡️" value={f.icon} maxLength={4}
+                            onChange={(e) => setFeatures(prev => prev.map((x, j) => j === i ? { ...x, icon: e.target.value } : x))} />
+                          <input className="form-input admin-feature-row__title" placeholder="Título..." value={f.title}
+                            onChange={(e) => setFeatures(prev => prev.map((x, j) => j === i ? { ...x, title: e.target.value } : x))} />
+                          <button className="btn btn-danger" style={{ padding: '8px 12px' }}
+                            onClick={() => setFeatures(prev => prev.filter((_, j) => j !== i))}>✕</button>
+                        </div>
+                        <textarea className="form-textarea" rows={2} placeholder="Descrição..." value={f.desc}
+                          onChange={(e) => setFeatures(prev => prev.map((x, j) => j === i ? { ...x, desc: e.target.value } : x))} />
+                      </div>
+                    ))}
+                  </div>
+                  <button className="btn btn-primary" style={{ marginTop: '10px', fontSize: '13px' }}
+                    onClick={() => setFeatures(prev => [...prev, { icon: '⭐', title: '', desc: '' }])}>
+                    + Adicionar Diferencial
+                  </button>
+                </div>
+              </>
+            )}
+
+            {/* ═══ SOBRE ═══ */}
+            {activeTab === 'sobre' && (
+              <>
+                {/* Hero */}
+                <div className="admin__section">
+                  <h2 className="admin__section-title">🏔 Hero da Página Sobre</h2>
+                  <div className="admin__field">
+                    <label className="form-label">Título principal</label>
+                    <input className="form-input" value={sobreHeroTitle} onChange={(e) => setSobreHeroTitle(e.target.value)} placeholder="Sobre a AeroTech Brasil" />
+                  </div>
+                  <div className="admin__field">
+                    <label className="form-label">Subtítulo</label>
+                    <input className="form-input" value={sobreHeroSubtitle} onChange={(e) => setSobreHeroSubtitle(e.target.value)} placeholder="Quase duas décadas de excelência..." />
+                  </div>
+                </div>
+
+                {/* Especialidades */}
+                <div className="admin__section">
+                  <h2 className="admin__section-title">⭐ Nossas Especialidades</h2>
+                  <p className="admin__section-desc" style={{ marginBottom: '1rem' }}>Lista exibida no painel lateral da página Sobre.</p>
+                  <div className="admin-features-list">
+                    {especialidades.map((e, i) => (
+                      <div key={i} className="admin-stat-row">
+                        <input
+                          className="form-input"
+                          style={{ gridColumn: '1 / 3' }}
+                          value={e}
+                          placeholder="Aviação Agrícola de Precisão"
+                          onChange={(ev) => setEspecialidades(prev => prev.map((x, j) => j === i ? ev.target.value : x))}
+                        />
+                        <button className="btn btn-danger" style={{ padding: '8px 12px' }}
+                          onClick={() => setEspecialidades(prev => prev.filter((_, j) => j !== i))}>✕</button>
+                      </div>
+                    ))}
+                  </div>
+                  <button className="btn btn-primary" style={{ marginTop: '10px', fontSize: '13px' }}
+                    onClick={() => setEspecialidades(prev => [...prev, ''])}>
+                    + Adicionar Especialidade
+                  </button>
+                </div>
+
+                {/* Timeline */}
                 <div className="admin__section">
                   <div className="admin__section-header">
                     <div>
-                      <h2 className="admin__section-title">📝 Descrição da Empresa</h2>
-                      <p className="admin__section-desc">Texto da seção "Sobre" na Home.</p>
+                      <h2 className="admin__section-title">🕐 Linha do Tempo</h2>
+                      <p className="admin__section-desc">Seção "Nossa Jornada" na página Sobre.</p>
                     </div>
-                    <span className="admin__count">{homeText.length} chars</span>
+                    <button className="btn btn-primary" onClick={() => setTimeline(prev => [...prev, { year: String(new Date().getFullYear()), title: '', desc: '' }])}>
+                      + Adicionar
+                    </button>
                   </div>
-                  <textarea className="form-textarea" value={homeText} onChange={(e) => setHomeText(e.target.value)} rows={10} placeholder="Digite a descrição..." />
+                  <div className="admin__field">
+                    <label className="form-label">Título da Seção</label>
+                    <input className="form-input" value={timelineTitle} onChange={(e) => setTimelineTitle(e.target.value)} placeholder="Uma história de crescimento" />
+                  </div>
+                  <div className="admin-features-list">
+                    {timeline.map((t, i) => (
+                      <div key={i} className="admin-feature-row">
+                        <div className="admin-feature-row__top">
+                          <input className="form-input" style={{ width: '100px', flexShrink: 0 }} placeholder="2005" value={t.year}
+                            onChange={(e) => setTimeline(prev => prev.map((x, j) => j === i ? { ...x, year: e.target.value } : x))} />
+                          <input className="form-input" placeholder="Título (ex: Fundação)" value={t.title}
+                            onChange={(e) => setTimeline(prev => prev.map((x, j) => j === i ? { ...x, title: e.target.value } : x))} />
+                          <button className="btn btn-danger" style={{ padding: '8px 12px' }}
+                            onClick={() => setTimeline(prev => prev.filter((_, j) => j !== i))}>✕</button>
+                        </div>
+                        <textarea className="form-textarea" rows={2} placeholder="Descrição..." value={t.desc}
+                          onChange={(e) => setTimeline(prev => prev.map((x, j) => j === i ? { ...x, desc: e.target.value } : x))} />
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </>
             )}
@@ -510,6 +812,7 @@ export default function AdminHome() {
             {/* ═══ PRODUTOS ═══ */}
             {activeTab === 'produtos' && (
               <>
+                {/* Cabeçalho da página */}
                 <div className="admin__section">
                   <h2 className="admin__section-title">📌 Cabeçalho da Página</h2>
                   <div className="admin__field">
@@ -522,25 +825,115 @@ export default function AdminHome() {
                   </div>
                 </div>
 
+                {/* Grid de produtos */}
                 <div className="admin__section">
                   <div className="admin__section-header">
                     <div>
-                      <h2 className="admin__section-title">📦 Lista de Produtos / Serviços</h2>
-                      <p className="admin__section-desc">Vincule categorias clicando nos chips coloridos.</p>
+                      <h2 className="admin__section-title">📦 Produtos</h2>
+                      <p className="admin__section-desc">
+                        {products.filter(p => p.active !== false).length} ativos · {products.filter(p => p.active === false).length} inativos
+                      </p>
                     </div>
-                    <button className="btn btn-primary" onClick={addProduct}>+ Novo Produto</button>
+                    <button className="btn btn-primary" onClick={() => { addProduct(); setEditingProductId(Date.now()); }}>
+                      + Novo Produto
+                    </button>
                   </div>
+
+                  {/* Filtro por nome */}
+                  <div className="admin-prod-filter">
+                    <input
+                      className="form-input"
+                      placeholder="🔍 Buscar por nome..."
+                      value={prodSearch}
+                      onChange={(e) => setProdSearch(e.target.value)}
+                    />
+                    {prodSearch && (
+                      <button className="admin-prod-filter__clear" onClick={() => setProdSearch('')}>✕</button>
+                    )}
+                  </div>
+
+                  {/* Grid visual */}
                   {products.length > 0 ? (
-                    <div className="admin__products-list">
-                      {products.map((p) => (
-                        <ProductRow key={p.id} product={p} categories={content.categories}
-                          onChange={updateProduct} onCategoriesChange={updateProductCategories} onRemove={removeProduct} />
-                      ))}
+                    <div className="admin-prod-grid">
+                      {products
+                        .filter(p => p.title.toLowerCase().includes(prodSearch.toLowerCase()))
+                        .map((p) => {
+                          const isActive = p.active !== false;
+                          return (
+                            <div key={p.id} className={`admin-prod-card ${!isActive ? 'admin-prod-card--inactive' : ''}`}>
+                              {/* Imagem */}
+                              <div className="admin-prod-card__img">
+                                {p.image
+                                  ? <img src={p.image} alt={p.title} />
+                                  : <span>{p.icon || '📦'}</span>
+                                }
+                                {!isActive && <div className="admin-prod-card__inactive-badge">Inativo</div>}
+                                {p.tag && <div className="admin-prod-card__tag">{p.tag}</div>}
+                              </div>
+
+                              {/* Info */}
+                              <div className="admin-prod-card__info">
+                                <p className="admin-prod-card__title">{p.title}</p>
+                                <p className="admin-prod-card__desc">
+                                  {p.description.slice(0, 60)}{p.description.length > 60 ? '…' : ''}
+                                </p>
+                              </div>
+
+                              {/* Ações */}
+                              <div className="admin-prod-card__actions">
+                                <button
+                                  className="btn admin-prod-card__btn-edit"
+                                  onClick={() => setEditingProductId(p.id)}
+                                  title="Editar"
+                                >
+                                  ✏ Editar
+                                </button>
+                                <button
+                                  className={`btn admin-prod-card__btn-toggle ${isActive ? '' : 'admin-prod-card__btn-activate'}`}
+                                  onClick={() => toggleProductActive(p.id)}
+                                  title={isActive ? 'Inativar' : 'Ativar'}
+                                >
+                                  {isActive ? '⊘ Inativar' : '✓ Ativar'}
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })
+                      }
                     </div>
                   ) : (
                     <div className="admin__empty"><span>📦</span><p>Nenhum produto. Clique em "+ Novo Produto".</p></div>
                   )}
                 </div>
+
+                {/* Modal de edição */}
+                {editingProductId !== null && (() => {
+                  const p = products.find(pr => pr.id === editingProductId);
+                  if (!p) return null;
+                  return (
+                    <div className="admin-prod-modal__overlay" onClick={() => setEditingProductId(null)}>
+                      <div className="admin-prod-modal" onClick={e => e.stopPropagation()}>
+                        <div className="admin-prod-modal__header">
+                          <h2>✏ Editar Produto</h2>
+                          <button className="produto-modal__close" onClick={() => setEditingProductId(null)}>✕</button>
+                        </div>
+                        <div className="admin-prod-modal__body">
+                          <ProductRow
+                            product={p}
+                            categories={content.categories}
+                            onChange={updateProduct}
+                            onCategoriesChange={updateProductCategories}
+                            onGalleryChange={updateProductGallery}
+                            onRemove={(id) => { removeProduct(id); setEditingProductId(null); }}
+                          />
+                        </div>
+                        <div className="admin-prod-modal__footer">
+                          <button className="btn btn-outline" onClick={() => setEditingProductId(null)}>Fechar</button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
               </>
             )}
 
