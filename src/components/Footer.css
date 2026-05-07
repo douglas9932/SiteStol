@@ -1,0 +1,181 @@
+.footer {
+  background: var(--navy);
+  padding: 3.5rem 0 0;
+  margin-top: auto;
+}
+
+.footer__inner {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+/* ── Top ── */
+.footer__top {
+  display: grid;
+  grid-template-columns: 1fr 2fr;
+  gap: 3rem;
+  padding-bottom: 2.5rem;
+  border-bottom: 1px solid rgba(200, 151, 42, 0.18);
+}
+
+/* ── Brand ── */
+.footer__brand {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.footer__brand-logo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.footer__brand-icon {
+  width: 44px;
+  height: 44px;
+  background: var(--gold);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  font-weight: 900;
+  color: var(--navy);
+  flex-shrink: 0;
+}
+
+.footer__brand-name {
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--white);
+}
+
+.footer__brand-desc {
+  font-size: 13px;
+  line-height: 1.75;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.footer__badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.footer__badge {
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  color: var(--gold-light);
+  border: 1px solid rgba(200, 151, 42, 0.35);
+  background: rgba(200, 151, 42, 0.08);
+  text-transform: uppercase;
+}
+
+/* ── Contacts ── */
+.footer__contacts-title {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--gold-light);
+  margin-bottom: 1.25rem;
+}
+
+.footer__contacts-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1.5rem;
+}
+
+.footer__contact {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(200, 151, 42, 0.12);
+  border-radius: var(--radius-md);
+  padding: 1.25rem;
+}
+
+.footer__contact-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.footer__contact-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: rgba(200, 151, 42, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--gold-light);
+  flex-shrink: 0;
+}
+
+.footer__contact-name {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--white);
+}
+
+.footer__contact-role {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.45);
+  margin-top: 2px;
+}
+
+.footer__contact-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.footer__contact-list li {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.6);
+  line-height: 1.4;
+}
+
+.footer__contact-list li span {
+  font-size: 13px;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+/* ── Bottom ── */
+.footer__bottom {
+  padding: 1.25rem 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.footer__bottom p {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.35);
+}
+
+/* ── Responsive ── */
+@media (max-width: 900px) {
+  .footer__top { grid-template-columns: 1fr; gap: 2rem; }
+}
+
+@media (max-width: 480px) {
+  .footer__bottom { flex-direction: column; text-align: center; }
+}

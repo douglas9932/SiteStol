@@ -1,0 +1,105 @@
+.stol__intro {
+  font-size: 15px;
+  color: var(--gray-600);
+  line-height: 1.8;
+  max-width: 760px;
+  margin-bottom: 2.5rem;
+}
+
+.stol__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+  gap: 20px;
+}
+
+.stol-card {
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 1.75rem;
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow 0.2s;
+}
+
+.stol-card:hover { box-shadow: var(--shadow-lg); }
+
+.stol-card__header {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1.25rem;
+  border-bottom: 1px solid var(--border-gray);
+}
+
+.stol-card__num {
+  width: 42px;
+  height: 42px;
+  background: var(--navy);
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+  font-weight: 900;
+  color: var(--gold-light);
+  flex-shrink: 0;
+}
+
+.stol-card__title {
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--navy);
+  margin-bottom: 4px;
+  flex: 1;
+}
+
+.stol-card__meta {
+  font-size: 12px;
+  color: var(--gray-400);
+}
+
+.stol-card__result {
+  font-size: 11px;
+  font-weight: 800;
+  padding: 4px 10px;
+  border-radius: 20px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.stol-card__result--ok   { background: var(--success-bg); color: var(--success); }
+.stol-card__result--warn { background: var(--warning-bg); color: var(--warning); }
+
+.stol-card__metrics {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.stol-card__metric {
+  text-align: center;
+  background: var(--gray-50);
+  border-radius: var(--radius-md);
+  padding: 12px 8px;
+}
+
+.stol-card__metric-val {
+  display: block;
+  font-size: 18px;
+  font-weight: 900;
+  color: var(--gold);
+  margin-bottom: 4px;
+}
+
+.stol-card__metric-label {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--gray-400);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+@media (max-width: 600px) {
+  .stol__grid { grid-template-columns: 1fr; }
+}
