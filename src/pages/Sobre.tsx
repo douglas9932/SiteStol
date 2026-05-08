@@ -4,16 +4,10 @@ import './Sobre.css';
 
 export default function Sobre() {
   const { content } = useContent();
-  const { companyDescription } = content.published.home;
+  const { companyDescription = '' } = content.published.home ?? {};
   const {
-    heroTitle, heroSubtitle, especialidades, timelineTitle, timeline,
-  } = content.published.sobre ?? {
-    heroTitle: 'Sobre a AeroTech Brasil',
-    heroSubtitle: 'Quase duas décadas de excelência em serviços aeronáuticos e aviação agrícola.',
-    especialidades: [],
-    timelineTitle: 'Uma história de crescimento',
-    timeline: [],
-  };
+    heroTitle = '', heroSubtitle = '', especialidades = [], timelineTitle = '', timeline = [],
+  } = content.published.sobre ?? {};
 
   return (
     <div className="page-wrapper">

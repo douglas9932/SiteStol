@@ -6,17 +6,17 @@ import './Home.css';
 export default function Home() {
   const { content } = useContent();
   const {
-    carouselImages, companyDescription,
-    carouselTagline, carouselTitle, carouselSubtitle,
-    sobreTitle, stats, featuresTitle, features,
-  } = content.published.home;
+    carouselImages = [], companyDescription = '',
+    carouselTagline = '', carouselTitle = '', carouselSubtitle = '',
+    sobreTitle = '', stats = [], featuresTitle = '', features = [],
+  } = content.published.home ?? {};
 
   const safeStats    = stats    ?? [];
   const safeFeatures = features ?? [];
 
   return (
     <div className="page-wrapper">
-      <Carousel images={carouselImages} tagline={carouselTagline ?? ''} title={carouselTitle ?? ''} subtitle={carouselSubtitle ?? ''} />
+      <Carousel images={carouselImages ?? []} tagline={carouselTagline ?? ''} title={carouselTitle ?? ''} subtitle={carouselSubtitle ?? ''} />
 
       {/* ── Sobre ── */}
       <section className="section home__sobre">

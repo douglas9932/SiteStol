@@ -11,7 +11,7 @@ interface Props {
   categories: Category[];
 }
 
-export default function ProdutosLayout({ headline, subheadline, products, categories }: Props) {
+export default function ProdutosLayout({ headline = '', subheadline = '', products = [], categories = [] }: Props) {
   const [search,         setSearch]         = useState('');
   const [selectedCatIds, setSelectedCatIds] = useState<number[]>([]);
   const [page,           setPage]           = useState(1);

@@ -1,22 +1,27 @@
 /**
  * contentService.ts
  *
- * Centraliza leitura e escrita do conteúdo do site.
- * - Se Supabase estiver configurado: usa Supabase (todos os dispositivos veem)
- * - Se não estiver configurado: usa localStorage (comportamento atual)
+ * Leitura e escrita do conteúdo do site.
  *
- * Chaves no Supabase (tabela site_content):
- *   'published'  → conteúdo publicado
- *   'draft'      → rascunho
- *   'categories' → categorias de produtos
- *   'sobre'      → conteúdo da página Sobre (published)
- *   'sobre_dft'  → rascunho da página Sobre
+ * Tabelas no Supabase (uma por seção):
+ *   home_content       → key: 'published' | 'draft'
+ *   sobre_content      → key: 'published' | 'draft'
+ *   products_content   → key: 'published' | 'draft'
+ *   categories_content → key: 'data'
+ *
+ * Fallback: localStorage (quando Supabase não está configurado)
  */
 import { supabase } from './supabase';
 // ── Chaves localStorage (fallback) ──────────────────────────────────────────
-const LS_PUBLISHED = 'aerotech_v1_published';
-const LS_DRAFT = 'aerotech_v1_draft';
-const LS_CATEGORIES = 'aerotech_v1_categories';
+const LS = {
+    HOME_PUB: 'aerotech_v1_published',
+    HOME_DFT: 'aerotech_v1_draft',
+    SOBRE_PUB: 'aerotech_v1_sobre_pub',
+    SOBRE_DFT: 'aerotech_v1_sobre_dft',
+    PROD_PUB: 'aerotech_v1_prod_pub',
+    PROD_DFT: 'aerotech_v1_prod_dft',
+    CATEGORIES: 'aerotech_v1_categories',
+};
 // ── Helpers localStorage ─────────────────────────────────────────────────────
 function lsGet(key, fallback) {
     try {
@@ -31,15 +36,15 @@ function lsSet(key, value) {
     try {
         localStorage.setItem(key, JSON.stringify(value));
     }
-    catch { /* localStorage cheio — ignora */ }
+    catch { /* ignora */ }
 }
-// ── Helpers Supabase ──────────────────────────────────────────────────────────
-async function sbGet(key, fallback) {
+// ── Helper Supabase genérico ──────────────────────────────────────────────────
+async function sbGet(table, key, fallback) {
     if (!supabase)
         return fallback;
     try {
         const { data, error } = await supabase
-            .from('site_content')
+            .from(table)
             .select('value')
             .eq('key', key)
             .single();
@@ -51,48 +56,95 @@ async function sbGet(key, fallback) {
         return fallback;
     }
 }
-async function sbSet(key, value) {
+async function sbSet(table, key, value) {
     if (!supabase)
         return;
     try {
         await supabase
-            .from('site_content')
+            .from(table)
             .upsert({ key, value, updated_at: new Date().toISOString() });
     }
     catch (e) {
-        console.error('[Supabase] Erro ao salvar:', key, e);
+        console.error(`[Supabase] Erro ao salvar ${table}/${key}:`, e);
     }
 }
-// ── API pública ───────────────────────────────────────────────────────────────
+// ── Funções públicas por seção ────────────────────────────────────────────────
 export const isSupabaseEnabled = !!supabase;
-/**
- * Lê um valor pelo nome da chave.
- * Tenta Supabase primeiro; se não configurado usa localStorage.
- */
+// ── HOME ──
+export async function getHomePublished(fallback) {
+    const v = await sbGet('home_content', 'published', lsGet(LS.HOME_PUB, fallback));
+    lsSet(LS.HOME_PUB, v);
+    return v;
+}
+export async function getHomeDraft(fallback) {
+    const v = await sbGet('home_content', 'draft', lsGet(LS.HOME_DFT, fallback));
+    lsSet(LS.HOME_DFT, v);
+    return v;
+}
+export async function saveHomePublished(value) {
+    lsSet(LS.HOME_PUB, value);
+    await sbSet('home_content', 'published', value);
+}
+export async function saveHomeDraft(value) {
+    lsSet(LS.HOME_DFT, value);
+    await sbSet('home_content', 'draft', value);
+}
+// ── SOBRE ──
+export async function getSobrePublished(fallback) {
+    const v = await sbGet('sobre_content', 'published', lsGet(LS.SOBRE_PUB, fallback));
+    lsSet(LS.SOBRE_PUB, v);
+    return v;
+}
+export async function getSobreDraft(fallback) {
+    const v = await sbGet('sobre_content', 'draft', lsGet(LS.SOBRE_DFT, fallback));
+    lsSet(LS.SOBRE_DFT, v);
+    return v;
+}
+export async function saveSobrePublished(value) {
+    lsSet(LS.SOBRE_PUB, value);
+    await sbSet('sobre_content', 'published', value);
+}
+export async function saveSobreDraft(value) {
+    lsSet(LS.SOBRE_DFT, value);
+    await sbSet('sobre_content', 'draft', value);
+}
+// ── PRODUTOS ──
+export async function getProductsPublished(fallback) {
+    // Compatibilidade: tenta nova tabela, cai no LS antigo se vazio
+    const lsFallback = lsGet(LS.HOME_PUB, fallback); // published antigo tinha products embutido
+    const v = await sbGet('products_content', 'published', lsFallback);
+    lsSet(LS.PROD_PUB, v);
+    return v;
+}
+export async function getProductsDraft(fallback) {
+    const lsFallback = lsGet(LS.HOME_DFT, fallback);
+    const v = await sbGet('products_content', 'draft', lsFallback);
+    lsSet(LS.PROD_DFT, v);
+    return v;
+}
+export async function saveProductsPublished(value) {
+    lsSet(LS.PROD_PUB, value);
+    await sbSet('products_content', 'published', value);
+}
+export async function saveProductsDraft(value) {
+    lsSet(LS.PROD_DFT, value);
+    await sbSet('products_content', 'draft', value);
+}
+// ── CATEGORIES ──
+export async function getCategories(fallback) {
+    const v = await sbGet('categories_content', 'data', lsGet(LS.CATEGORIES, fallback));
+    lsSet(LS.CATEGORIES, v);
+    return v;
+}
+export async function saveCategories(value) {
+    lsSet(LS.CATEGORIES, value);
+    await sbSet('categories_content', 'data', value);
+}
+// ── Mantém getContent/setContent genérico para compatibilidade ───────────────
 export async function getContent(key, fallback) {
-    if (supabase) {
-        const value = await sbGet(key, fallback);
-        // Também atualiza o localStorage como cache offline
-        lsSet(key, value);
-        return value;
-    }
     return lsGet(key, fallback);
 }
-/**
- * Salva um valor pelo nome da chave.
- * Salva em ambos (Supabase + localStorage) para cache offline.
- */
 export async function setContent(key, value) {
-    lsSet(key, value); // sempre salva local como cache
-    if (supabase) {
-        await sbSet(key, value);
-    }
+    lsSet(key, value);
 }
-// ── Chaves nomeadas (evita typos) ─────────────────────────────────────────────
-export const KEYS = {
-    PUBLISHED: LS_PUBLISHED,
-    DRAFT: LS_DRAFT,
-    CATEGORIES: LS_CATEGORIES,
-    SOBRE_PUB: 'aerotech_v1_sobre_pub',
-    SOBRE_DFT: 'aerotech_v1_sobre_dft',
-};
+export const KEYS = LS;

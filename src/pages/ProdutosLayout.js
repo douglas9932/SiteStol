@@ -2,7 +2,7 @@ import { jsx as _jsx, jsxs as _jsxs, Fragment as _Fragment } from "react/jsx-run
 import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './Produtos.css';
-export default function ProdutosLayout({ headline, subheadline, products, categories }) {
+export default function ProdutosLayout({ headline = '', subheadline = '', products = [], categories = [] }) {
     const [search, setSearch] = useState('');
     const [selectedCatIds, setSelectedCatIds] = useState([]);
     const [page, setPage] = useState(1);

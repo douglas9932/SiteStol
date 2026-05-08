@@ -5,8 +5,8 @@ import './Produtos.css';
 
 export default function Produtos() {
   const { content } = useContent();
-  const { headline, subheadline, products } = content.published.products;
-  const categories = content.categories;
+  const { headline = '', subheadline = '', products = [] } = content.published.products ?? {};
+  const categories = content.categories ?? [];
 
   return (
     <div className="page-wrapper">

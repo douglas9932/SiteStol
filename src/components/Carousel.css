@@ -192,12 +192,35 @@
 /* ── Responsive ── */
 @media (max-width: 768px) {
   .carousel { height: 65vh; min-height: 380px; }
-  .carousel__btn { width: 40px; height: 40px; font-size: 20px; }
-  .carousel__btn--prev { left: 12px; }
-  .carousel__btn--next { right: 12px; }
+
+  .carousel__btn {
+    width: 48px;
+    top: 0;
+    bottom: 0;
+    height: auto; /* reseta height fixo */
+    font-size: 22px;
+    padding: 0;
+    opacity: 0.85;
+  }
+
+  .carousel__btn--prev {
+    left: 0;
+    padding-left: 10px;
+    background: linear-gradient(to right, rgba(10,22,40,0.7) 0%, transparent 100%);
+  }
+
+  .carousel__btn--next {
+    right: 0;
+    padding-right: 10px;
+    background: linear-gradient(to left, rgba(10,22,40,0.7) 0%, transparent 100%);
+  }
 }
 
 @media (max-width: 480px) {
   .carousel { height: 58vh; min-height: 320px; }
-  .carousel__btn { width: 34px; height: 34px; font-size: 17px; }
+
+  .carousel__btn {
+    width: 42px;
+    font-size: 20px;
+  }
 }

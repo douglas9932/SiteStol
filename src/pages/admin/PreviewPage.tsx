@@ -36,7 +36,7 @@ function PreviewBanner({ page }: { page: string }) {
 function PreviewHome() {
   const { content } = useContent();
   const {
-    carouselImages, companyDescription,
+    carouselImages = [], companyDescription = '',
     carouselTagline, carouselTitle, carouselSubtitle,
     sobreTitle, stats, featuresTitle, features,
   } = content.draft.home;

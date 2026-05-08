@@ -141,18 +141,18 @@ function CategoryManager({ categories, onAdd, onUpdate, onRemove, showToast }) {
 export default function AdminHome() {
     const [searchParams] = useSearchParams();
     const { content, updateDraft, publishDirect, discardDraft, addCategory, updateCategory, removeCategory } = useContent();
-    const [homeImages, setHomeImages] = useState(structuredClone(content.draft.home.carouselImages));
-    const [homeText, setHomeText] = useState(content.draft.home.companyDescription);
-    const [carouselTagline, setCarouselTagline] = useState(content.draft.home.carouselTagline ?? '');
-    const [carouselTitle, setCarouselTitle] = useState(content.draft.home.carouselTitle ?? '');
-    const [carouselSubtitle, setCarouselSubtitle] = useState(content.draft.home.carouselSubtitle ?? '');
-    const [sobreTitle, setSobreTitle] = useState(content.draft.home.sobreTitle ?? 'Sobre a AeroTech Brasil');
-    const [stats, setStats] = useState(structuredClone(content.draft.home.stats ?? []));
-    const [featuresTitle, setFeaturesTitle] = useState(content.draft.home.featuresTitle ?? 'Diferenciais que fazem a diferença');
-    const [features, setFeatures] = useState(structuredClone(content.draft.home.features ?? []));
-    const [products, setProducts] = useState(structuredClone(content.draft.products.products));
-    const [prodHeadline, setProdHeadline] = useState(content.draft.products.headline);
-    const [prodSubline, setProdSubline] = useState(content.draft.products.subheadline);
+    const [homeImages, setHomeImages] = useState(structuredClone(content.draft.home?.carouselImages ?? []));
+    const [homeText, setHomeText] = useState(content.draft.home?.companyDescription ?? '');
+    const [carouselTagline, setCarouselTagline] = useState(content.draft.home?.carouselTagline ?? '');
+    const [carouselTitle, setCarouselTitle] = useState(content.draft.home?.carouselTitle ?? '');
+    const [carouselSubtitle, setCarouselSubtitle] = useState(content.draft.home?.carouselSubtitle ?? '');
+    const [sobreTitle, setSobreTitle] = useState(content.draft.home?.sobreTitle ?? '');
+    const [stats, setStats] = useState(structuredClone(content.draft.home?.stats ?? []));
+    const [featuresTitle, setFeaturesTitle] = useState(content.draft.home?.featuresTitle ?? '');
+    const [features, setFeatures] = useState(structuredClone(content.draft.home?.features ?? []));
+    const [products, setProducts] = useState(structuredClone(content.draft.products?.products ?? []));
+    const [prodHeadline, setProdHeadline] = useState(content.draft.products?.headline ?? '');
+    const [prodSubline, setProdSubline] = useState(content.draft.products?.subheadline ?? '');
     const [newImageUrl, setNewImageUrl] = useState('');
     const [toast, setToast] = useState('');
     const [showModal, setShowModal] = useState(false);
@@ -168,6 +168,38 @@ export default function AdminHome() {
         const t = searchParams.get('tab');
         return (t === 'produtos' || t === 'categorias') ? t : 'home';
     });
+    // ── Ressincroniza os estados locais quando o Supabase termina de carregar ──
+    // O useState inicializa com os dados do localStorage (pode estar desatualizado).
+    // Quando o ContentContext carrega do Supabase e atualiza o content.draft,
+    // este useEffect detecta a mudança e atualiza todos os estados locais do Admin.
+    const supabaseLoaded = useRef(false);
+    useEffect(() => {
+        // Ignora a primeira renderização (ainda é o localStorage)
+        if (!supabaseLoaded.current) {
+            supabaseLoaded.current = true;
+            return;
+        }
+        // Supabase atualizou o content — ressincroniza tudo
+        setHomeImages(structuredClone(content.draft.home.carouselImages));
+        setHomeText(content.draft.home.companyDescription);
+        setCarouselTagline(content.draft.home.carouselTagline ?? '');
+        setCarouselTitle(content.draft.home.carouselTitle ?? '');
+        setCarouselSubtitle(content.draft.home.carouselSubtitle ?? '');
+        setSobreTitle(content.draft.home.sobreTitle ?? '');
+        setStats(structuredClone(content.draft.home.stats ?? []));
+        setFeaturesTitle(content.draft.home.featuresTitle ?? '');
+        setFeatures(structuredClone(content.draft.home.features ?? []));
+        setProducts(structuredClone(content.draft.products.products));
+        setProdHeadline(content.draft.products.headline);
+        setProdSubline(content.draft.products.subheadline);
+        setSobreHeroTitle(content.draft.sobre?.heroTitle ?? '');
+        setSobreHeroSubtitle(content.draft.sobre?.heroSubtitle ?? '');
+        setEspecialidades(structuredClone(content.draft.sobre?.especialidades ?? []));
+        setTimelineTitle(content.draft.sobre?.timelineTitle ?? '');
+        setTimeline(structuredClone(content.draft.sobre?.timeline ?? []));
+        // Depende do objeto draft inteiro — dispara quando o Supabase atualiza
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [content.draft]);
     useEffect(() => {
         const t = searchParams.get('tab');
         if (t === 'home' || t === 'produtos' || t === 'categorias')

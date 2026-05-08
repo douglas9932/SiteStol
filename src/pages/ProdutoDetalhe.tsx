@@ -34,7 +34,7 @@ export default function ProdutoDetalhe() {
   const navigate = useNavigate();
   const { content } = useContent();
 
-  const product = content.published.products.products.find(
+  const product = (content.published.products?.products ?? []).find(
     (p) => String(p.id) === id
   );
 

@@ -13,7 +13,7 @@ export default function ProdutoDetalhe() {
     const { id } = useParams();
     const navigate = useNavigate();
     const { content } = useContent();
-    const product = content.published.products.products.find((p) => String(p.id) === id);
+    const product = (content.published.products?.products ?? []).find((p) => String(p.id) === id);
     const allImages = product
         ? [...(product.image ? [product.image] : []), ...(product.images ?? [])]
         : [];

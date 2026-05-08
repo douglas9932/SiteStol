@@ -10,15 +10,17 @@ interface CarouselProps {
   subtitle?: string;
 }
 
-export default function Carousel({ images, autoPlayMs = 5000, tagline, title, subtitle }: CarouselProps) {
+export default function Carousel({ images = [], autoPlayMs = 5000, tagline, title, subtitle }: CarouselProps) {
   const [current, setCurrent] = useState(0);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  const safeLen = (images ?? []).length || 1;
+
   const go = useCallback(
     (dir: 1 | -1) => {
-      setCurrent((prev) => (prev + dir + images.length) % images.length);
+      setCurrent((prev) => (prev + dir + safeLen) % safeLen);
     },
-    [images.length]
+    [safeLen]
   );
 
   const goTo = (i: number) => setCurrent(i);
@@ -37,7 +39,9 @@ export default function Carousel({ images, autoPlayMs = 5000, tagline, title, su
   const handlePrev = () => { go(-1); resetTimer(); };
   const handleNext = () => { go(1);  resetTimer(); };
 
-  if (!images.length) {
+  const safeImages = images ?? [];
+
+  if (!safeImages.length) {
     return (
       <div className="carousel carousel--empty">
         <p>Nenhuma imagem configurada no carrossel.</p>
@@ -54,7 +58,7 @@ export default function Carousel({ images, autoPlayMs = 5000, tagline, title, su
         className="carousel__track"
         style={{ transform: `translateX(-${current * 100}%)` }}
       >
-        {images.map((img, i) => (
+        {safeImages.map((img, i) => (
           <div key={img.id} className="carousel__slide">
             <img
               src={img.url}
@@ -86,7 +90,7 @@ export default function Carousel({ images, autoPlayMs = 5000, tagline, title, su
 
       {/* Dots */}
       <div className="carousel__dots" role="tablist">
-        {images.map((_, i) => (
+        {safeImages.map((_, i) => (
           <button
             key={i}
             role="tab"
