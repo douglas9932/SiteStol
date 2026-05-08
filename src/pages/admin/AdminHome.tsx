@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useContent } from '@/hooks/useContent';
-import { CarouselImage, Product, Category, HomeStat, HomeFeature, SobreTimelineItem } from '@/context/ContentContext';
+import { CarouselImage, Product, Category, HomeStat, HomeFeature, SobreTimelineItem, ProductAccordionItem, DemoImage } from '@/context/ContentContext';
 import './AdminHome.css';
 
 type Tab = 'home' | 'sobre' | 'produtos' | 'categorias';
@@ -74,12 +74,15 @@ function CategorySelector({ selected, categories, onChange }: { selected: number
 }
 
 /* ─── Product Row ── */
-function ProductRow({ product, categories, onChange, onCategoriesChange, onRemove, onGalleryChange }: {
+function ProductRow({ product, categories, onChange, onCategoriesChange, onRemove, onGalleryChange, onSpecsChange, onInfoChange, onDemoImagesChange }: {
   product: Product;
   categories: Category[];
   onChange: (id: number, field: keyof Product, value: string) => void;
   onCategoriesChange: (id: number, ids: number[]) => void;
   onGalleryChange: (id: number, images: string[]) => void;
+  onSpecsChange: (id: number, items: ProductAccordionItem[]) => void;
+  onInfoChange:  (id: number, items: ProductAccordionItem[]) => void;
+  onDemoImagesChange: (id: number, items: DemoImage[]) => void;
   onRemove: (id: number) => void;
 }) {
   const fileRef    = useRef<HTMLInputElement>(null);
@@ -105,9 +108,7 @@ function ProductRow({ product, categories, onChange, onCategoriesChange, onRemov
       reader.onload = (ev) => {
         results[i] = ev.target?.result as string;
         loaded++;
-        if (loaded === files.length) {
-          onGalleryChange(product.id, [...current, ...results]);
-        }
+        if (loaded === files.length) onGalleryChange(product.id, [...current, ...results]);
       };
       reader.readAsDataURL(file);
     });
@@ -115,106 +116,237 @@ function ProductRow({ product, categories, onChange, onCategoriesChange, onRemov
   };
 
   const removeGalleryImg = (idx: number) => {
-    const updated = (product.images ?? []).filter((_, i) => i !== idx);
-    onGalleryChange(product.id, updated);
+    onGalleryChange(product.id, (product.images ?? []).filter((_, i) => i !== idx));
   };
+
+  const [galleryUrl, setGalleryUrl] = useState('');
 
   const addGalleryUrl = (url: string) => {
     if (!url.trim()) return;
     onGalleryChange(product.id, [...(product.images ?? []), url.trim()]);
   };
 
-  const [galleryUrl, setGalleryUrl] = useState('');
+  const demoRef = useRef<HTMLInputElement>(null);
+  const handleDemoFiles = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? []);
+    if (!files.length) return;
+    const current = product.demoImages ?? [];
+    let loaded = 0;
+    const results: DemoImage[] = new Array(files.length);
+    files.forEach((file, i) => {
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        results[i] = { url: ev.target?.result as string, caption: '' };
+        loaded++;
+        if (loaded === files.length) onDemoImagesChange(product.id, [...current, ...results]);
+      };
+      reader.readAsDataURL(file);
+    });
+    e.target.value = '';
+  };
+  const demoImages = product.demoImages ?? [];
+  const updateDemoCaption = (idx: number, caption: string) =>
+    onDemoImagesChange(product.id, demoImages.map((d, i) => i === idx ? { ...d, caption } : d));
+  const removeDemoImg = (idx: number) =>
+    onDemoImagesChange(product.id, demoImages.filter((_, i) => i !== idx));
+
+  // Helpers para accordion items
+  const updateAccordion = (
+    list: ProductAccordionItem[],
+    idx: number,
+    field: 'label' | 'content',
+    value: string
+  ) => list.map((item, i) => i === idx ? { ...item, [field]: value } : item);
+
+  const specs = product.specifications ?? [];
+  const info  = product.info ?? [];
+
+  const [activeInnerTab, setActiveInnerTab] = useState<'descricao'|'galeria'|'specs'|'demo'>('descricao');
 
   return (
     <div className="admin-product-row">
-      {/* Header */}
-      <div className="admin-product-row__top">
-        <input className="form-input admin-product-row__icon" placeholder="🔧" value={product.icon} onChange={(e) => onChange(product.id, 'icon', e.target.value)} maxLength={4} />
-        <input className="form-input admin-product-row__title" placeholder="Título..." value={product.title} onChange={(e) => onChange(product.id, 'title', e.target.value)} />
+
+      {/* ── Título + Tag ── */}
+      <div className="admin-prod-row__head">
+        <input className="form-input" placeholder="Título do produto..." value={product.title} onChange={(e) => onChange(product.id, 'title', e.target.value)} />
         <input className="form-input admin-product-row__tag" placeholder="Tag (ex: Principal)" value={product.tag ?? ''} onChange={(e) => onChange(product.id, 'tag', e.target.value)} />
-        <button className="btn btn-danger admin-product-row__del" onClick={() => onRemove(product.id)}>✕</button>
+        <button className="btn btn-danger" style={{ padding: '8px 12px' }} onClick={() => onRemove(product.id)}>✕</button>
       </div>
 
-      {/* Corpo: imagem principal + descrição */}
-      <div className="admin-product-row__body">
-        <div className="admin-product-row__img-col">
-          <span className="admin-product-row__cats-label">Foto Principal</span>
+      {/* ── Duas colunas ── */}
+      <div className="admin-prod-row__cols">
+
+        {/* Coluna esquerda — Foto + Categorias */}
+        <div className="admin-prod-row__left">
+          <span className="admin-product-row__cats-label" style={{ alignSelf: 'flex-start' }}>Foto Principal</span>
           <div className="admin-product-row__img-preview">
             {product.image
               ? <img src={product.image} alt={product.title} />
-              : <span>{product.icon || '📦'}</span>
+              : <span>📦</span>
             }
           </div>
           <input ref={fileRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleImageFile} />
-          <button className="btn admin__upload-btn" style={{ fontSize: '11px', padding: '6px 10px' }} onClick={() => fileRef.current?.click()}>
+          <button className="btn admin__upload-btn" style={{ fontSize: '11px', padding: '6px 10px', width: '100%' }} onClick={() => fileRef.current?.click()}>
             📁 Carregar foto
           </button>
           {product.image && (
-            <button className="btn btn-danger" style={{ fontSize: '11px', padding: '5px 10px', marginTop: 4 }} onClick={() => onChange(product.id, 'image', '')}>
-              🗑 Remover
+            <button className="btn btn-danger" style={{ fontSize: '11px', padding: '5px 10px', width: '100%' }} onClick={() => onChange(product.id, 'image', '')}>
+              🗑 Remover foto
             </button>
           )}
           <input
             className="form-input"
-            style={{ fontSize: '11px', marginTop: 6 }}
-            placeholder="Ou cole URL da imagem..."
+            style={{ fontSize: '11px' }}
+            placeholder="Ou cole URL..."
             value={product.image?.startsWith('data:') ? '' : (product.image ?? '')}
             onChange={(e) => onChange(product.id, 'image', e.target.value)}
           />
-        </div>
-
-        <div className="admin-product-row__desc-col">
-          <span className="admin-product-row__cats-label">Descrição</span>
-          <textarea className="form-textarea admin-product-row__desc" placeholder="Descrição do produto..." value={product.description} onChange={(e) => onChange(product.id, 'description', e.target.value)} rows={5} />
-          <div className="admin-product-row__cats" style={{ marginTop: 12 }}>
-            <span className="admin-product-row__cats-label">Categorias:</span>
-            <CategorySelector selected={product.categoryIds ?? []} categories={categories} onChange={(ids) => onCategoriesChange(product.id, ids)} />
+          <div style={{ width: '100%', borderTop: '1px solid var(--border-gray)', paddingTop: 12 }}>
+            <span className="admin-product-row__cats-label">Categorias</span>
+            <div style={{ marginTop: 8 }}>
+              <CategorySelector selected={product.categoryIds ?? []} categories={categories} onChange={(ids) => onCategoriesChange(product.id, ids)} />
+            </div>
           </div>
         </div>
-      </div>
 
-      {/* Galeria extra */}
-      <div className="admin-product-row__gallery">
-        <span className="admin-product-row__cats-label">
-          🖼 Galeria de Imagens <span style={{ fontWeight: 400, color: 'var(--gray-400)' }}>(visíveis no modal "Saiba Mais")</span>
-        </span>
-
-        {(product.images ?? []).length > 0 && (
-          <div className="admin-product-row__gallery-grid">
-            {(product.images ?? []).map((img, idx) => (
-              <div key={idx} className="admin-product-row__gallery-item">
-                <img src={img} alt={`galeria ${idx + 1}`} />
-                <button className="admin-img-card__remove" onClick={() => removeGalleryImg(idx)}>✕</button>
-              </div>
+        {/* Coluna direita — abas */}
+        <div className="admin-prod-row__right">
+          <div className="admin-prod-tabs">
+            {([
+              { key: 'descricao', label: '📝 Descrição'       },
+              { key: 'galeria',   label: '🖼 Galeria'         },
+              { key: 'specs',     label: '📋 Espec./Info.'    },
+              { key: 'demo',      label: '📸 Demonstrativo'   },
+            ] as const).map(({ key, label }) => (
+              <button
+                key={key}
+                className={`admin-prod-tab ${activeInnerTab === key ? 'admin-prod-tab--active' : ''}`}
+                onClick={() => setActiveInnerTab(key)}
+              >
+                {label}
+              </button>
             ))}
           </div>
-        )}
 
-        <div className="admin-product-row__gallery-add">
-          <input ref={galleryRef} type="file" accept="image/*" multiple style={{ display: 'none' }} onChange={handleGalleryFiles} />
-          <button className="btn admin__upload-btn" style={{ fontSize: '11px', padding: '6px 12px' }} onClick={() => galleryRef.current?.click()}>
-            📁 Carregar imagens
-          </button>
-          <input
-            className="form-input"
-            style={{ fontSize: '12px', flex: 1 }}
-            placeholder="Ou cole URL e pressione Enter..."
-            value={galleryUrl}
-            onChange={(e) => setGalleryUrl(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') { addGalleryUrl(galleryUrl); setGalleryUrl(''); }
-            }}
-          />
-          <button className="btn btn-primary" style={{ fontSize: '12px', padding: '8px 14px' }}
-            onClick={() => { addGalleryUrl(galleryUrl); setGalleryUrl(''); }}>
-            + Add
-          </button>
+          <div className="admin-prod-tab-body">
+
+            {/* ── Descrição ── */}
+            {activeInnerTab === 'descricao' && (
+              <textarea
+                className="form-textarea"
+                rows={12}
+                placeholder="Descrição completa do produto..."
+                value={product.description}
+                onChange={(e) => onChange(product.id, 'description', e.target.value)}
+              />
+            )}
+
+            {/* ── Galeria ── */}
+            {activeInnerTab === 'galeria' && (
+              <>
+                {(product.images ?? []).length > 0 && (
+                  <div className="admin__img-grid">
+                    {(product.images ?? []).map((img, idx) => (
+                      <div key={idx} className="admin-img-card">
+                        <div className="admin-img-card__thumb">
+                          <img src={img} alt={`galeria ${idx + 1}`} />
+                          <button className="admin-img-card__remove" onClick={() => onGalleryChange(product.id, (product.images ?? []).filter((_, i) => i !== idx))}>✕</button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <div className="admin__add-url">
+                  <input ref={galleryRef} type="file" accept="image/*" multiple style={{ display: 'none' }} onChange={handleGalleryFiles} />
+                  <button className="btn admin__upload-btn" onClick={() => galleryRef.current?.click()}>📁 Carregar imagens</button>
+                  <input className="form-input" style={{ fontSize: '12px', flex: 1 }} placeholder="Ou cole URL e Enter..."
+                    value={galleryUrl} onChange={(e) => setGalleryUrl(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') { addGalleryUrl(galleryUrl); setGalleryUrl(''); } }} />
+                  <button className="btn btn-primary" style={{ fontSize: '12px', padding: '8px 14px' }}
+                    onClick={() => { addGalleryUrl(galleryUrl); setGalleryUrl(''); }}>+ Add</button>
+                </div>
+              </>
+            )}
+
+            {/* ── Especificações + Informações ── */}
+            {activeInnerTab === 'specs' && (
+              <>
+                <div>
+                  <div className="admin-product-row__accordion-header">
+                    <span className="admin-product-row__cats-label">📋 Especificações</span>
+                    <button className="btn btn-primary" style={{ fontSize: '11px', padding: '5px 12px' }}
+                      onClick={() => onSpecsChange(product.id, [...specs, { label: '', content: '' }])}>+ Adicionar</button>
+                  </div>
+                  {specs.map((item, idx) => (
+                    <div key={idx} className="admin-accordion-row">
+                      <input className="form-input" placeholder="Rótulo (ex: Material)" value={item.label}
+                        onChange={(e) => onSpecsChange(product.id, updateAccordion(specs, idx, 'label', e.target.value))} />
+                      <textarea className="form-textarea" rows={1} style={{ minHeight: 38, maxHeight: 80, resize: 'vertical' }} placeholder="Conteúdo..."
+                        value={item.content}
+                        onChange={(e) => onSpecsChange(product.id, updateAccordion(specs, idx, 'content', e.target.value))} />
+                      <button className="btn btn-danger" style={{ padding: '6px 10px', alignSelf: 'flex-start' }}
+                        onClick={() => onSpecsChange(product.id, specs.filter((_, i) => i !== idx))}>✕</button>
+                    </div>
+                  ))}
+                </div>
+                <div style={{ borderTop: '1px solid var(--border-gray)', paddingTop: 14 }}>
+                  <div className="admin-product-row__accordion-header">
+                    <span className="admin-product-row__cats-label">ℹ️ Informações</span>
+                    <button className="btn btn-primary" style={{ fontSize: '11px', padding: '5px 12px' }}
+                      onClick={() => onInfoChange(product.id, [...info, { label: '', content: '' }])}>+ Adicionar</button>
+                  </div>
+                  {info.map((item, idx) => (
+                    <div key={idx} className="admin-accordion-row">
+                      <input className="form-input" placeholder="Rótulo (ex: Compatibilidade)" value={item.label}
+                        onChange={(e) => onInfoChange(product.id, updateAccordion(info, idx, 'label', e.target.value))} />
+                      <textarea className="form-textarea" rows={1} style={{ minHeight: 38, maxHeight: 80, resize: 'vertical' }} placeholder="Conteúdo..."
+                        value={item.content}
+                        onChange={(e) => onInfoChange(product.id, updateAccordion(info, idx, 'content', e.target.value))} />
+                      <button className="btn btn-danger" style={{ padding: '6px 10px', alignSelf: 'flex-start' }}
+                        onClick={() => onInfoChange(product.id, info.filter((_, i) => i !== idx))}>✕</button>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+
+            {/* ── Demonstrativo ── */}
+            {activeInnerTab === 'demo' && (
+              <>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <p className="admin__hint" style={{ margin: 0 }}>Descrição é opcional — aparece no site só se preenchida.</p>
+                  <input ref={demoRef} type="file" accept="image/*" multiple style={{ display: 'none' }} onChange={handleDemoFiles} />
+                  <button className="btn admin__upload-btn" style={{ fontSize: '12px', padding: '7px 14px', flexShrink: 0 }}
+                    onClick={() => demoRef.current?.click()}>📁 Adicionar Imagens</button>
+                </div>
+                {demoImages.length > 0 ? (
+                  <div className="admin-demo-grid">
+                    {demoImages.map((d, idx) => (
+                      <div key={idx} className="admin-demo-item">
+                        <div className="admin-demo-item__img">
+                          <img src={d.url} alt={`demo ${idx + 1}`} />
+                          <button className="admin-img-card__remove" onClick={() => removeDemoImg(idx)}>✕</button>
+                        </div>
+                        <input className="form-input" style={{ fontSize: '12px', marginTop: 6 }}
+                          placeholder="Descrição (opcional)..."
+                          value={d.caption ?? ''}
+                          onChange={(e) => updateDemoCaption(idx, e.target.value)} />
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p style={{ fontSize: '13px', color: 'var(--gray-400)' }}>Nenhuma imagem demonstrativa. Clique em "Adicionar Imagens".</p>
+                )}
+              </>
+            )}
+
+          </div>
         </div>
       </div>
     </div>
   );
 }
+
 
 /* ─── Category Manager ── */
 const PRESET_COLORS = ['#16a34a','#2563eb','#9333ea','#ea580c','#dc2626','#0891b2','#ca8a04','#be185d','#475569','#0a1628'];
@@ -487,6 +619,9 @@ export default function AdminHome() {
   const updateProduct = (id: number, field: keyof Product, value: string) => setProducts((prev) => prev.map((p) => p.id === id ? { ...p, [field]: value } : p));
   const updateProductCategories = (id: number, categoryIds: number[]) => setProducts((prev) => prev.map((p) => p.id === id ? { ...p, categoryIds } : p));
   const updateProductGallery    = (id: number, images: string[])       => setProducts((prev) => prev.map((p) => p.id === id ? { ...p, images } : p));
+  const updateProductSpecs      = (id: number, specifications: ProductAccordionItem[]) => setProducts((prev) => prev.map((p) => p.id === id ? { ...p, specifications } : p));
+  const updateProductInfo       = (id: number, info: ProductAccordionItem[])           => setProducts((prev) => prev.map((p) => p.id === id ? { ...p, info } : p));
+  const updateProductDemoImages = (id: number, demoImages: DemoImage[])                => setProducts((prev) => prev.map((p) => p.id === id ? { ...p, demoImages } : p));
   const toggleProductActive     = (id: number)                         => setProducts((prev) => prev.map((p) => p.id === id ? { ...p, active: p.active === false ? true : false } : p));
   const removeProduct = (id: number) => setProducts((prev) => prev.filter((p) => p.id !== id));
 
@@ -924,6 +1059,9 @@ export default function AdminHome() {
                             onChange={updateProduct}
                             onCategoriesChange={updateProductCategories}
                             onGalleryChange={updateProductGallery}
+                            onSpecsChange={updateProductSpecs}
+                            onInfoChange={updateProductInfo}
+                            onDemoImagesChange={updateProductDemoImages}
                             onRemove={(id) => { removeProduct(id); setEditingProductId(null); }}
                           />
                         </div>

@@ -494,3 +494,67 @@
   .prod-page__header { padding: 12px 1rem; gap: 1rem; }
   .prod-page__breadcrumb { display: none; }
 }
+
+/* ── Accordion na tela do produto ── */
+.prod-accordion {
+  width: 100%;
+}
+
+.prod-accordion__trigger {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--navy);
+  font-family: 'Montserrat', sans-serif;
+  text-align: left;
+}
+
+.prod-accordion__chevron {
+  font-size: 20px;
+  color: var(--gray-400);
+  transition: transform 0.2s;
+  display: inline-block;
+}
+
+.prod-accordion__chevron--open {
+  transform: rotate(90deg);
+}
+
+.prod-accordion__body {
+  padding: 0 0 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.prod-accordion__item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.prod-accordion__item-label {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--navy);
+}
+
+.prod-accordion__item-content {
+  font-size: 14px;
+  color: var(--gray-600);
+  line-height: 1.65;
+  white-space: pre-wrap;
+}
+
+.prod-accordion__line {
+  height: 1px;
+  background: var(--border-gray);
+  width: 100%;
+}

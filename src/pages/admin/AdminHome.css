@@ -1126,7 +1126,7 @@
   display: flex;
   align-items: flex-start;
   justify-content: center;
-  padding: 2rem 1rem;
+  padding: 1.5rem 1rem;
   overflow-y: auto;
   animation: fadeIn 0.2s ease;
 }
@@ -1135,7 +1135,7 @@
   background: #f0f2f5;
   border-radius: var(--radius-xl);
   width: 100%;
-  max-width: 820px;
+  max-width: 1100px;        /* mais largo */
   box-shadow: 0 24px 80px rgba(0,0,0,0.3);
   animation: modalUp 0.25s ease;
   display: flex;
@@ -1146,9 +1146,11 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 1.25rem 1.5rem;
+  padding: 1.1rem 1.5rem;
   background: var(--navy);
   border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+  flex-shrink: 0;
+  /* sticky removido — o scroll é no overlay, não dentro do modal */
 }
 
 .admin-prod-modal__header h2 {
@@ -1158,27 +1160,114 @@
 }
 
 .admin-prod-modal__body {
-  padding: 1.5rem;
+  padding: 1.25rem 1.5rem;
 }
 
-.admin-prod-modal__body .admin-product-row {
+/* ── Produto row reorganizado ── */
+.admin-product-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+/* Título + tag no topo — full width */
+.admin-prod-row__head {
+  display: grid;
+  grid-template-columns: 1fr 180px 40px;
+  gap: 10px;
+  align-items: center;
   background: var(--white);
-  border-radius: var(--radius-lg);
-  padding: 1.5rem;
-  box-shadow: var(--shadow-sm);
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid var(--border-gray);
 }
 
+/* Duas colunas principais lado a lado */
+.admin-prod-row__cols {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  gap: 0;
+  background: var(--white);
+}
+
+/* Coluna esquerda — imagem + categorias */
+.admin-prod-row__left {
+  border-right: 1px solid var(--border-gray);
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: center;
+}
+
+/* Coluna direita — abas de conteúdo */
+.admin-prod-row__right {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+/* Abas internas */
+.admin-prod-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--border-gray);
+  background: var(--gray-50);
+  padding: 0 1rem;
+  flex-shrink: 0; /* não encolhe */
+  /* SEM position sticky — fica no fluxo normal junto com o conteúdo */
+}
+
+.admin-prod-tab {
+  padding: 10px 16px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--gray-600);
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  white-space: nowrap;
+  font-family: 'Montserrat', sans-serif;
+  transition: all 0.15s;
+}
+
+.admin-prod-tab:hover { color: var(--navy); }
+.admin-prod-tab--active {
+  color: var(--gold);
+  border-bottom-color: var(--gold);
+}
+
+.admin-prod-tab-body {
+  padding: 1.25rem;
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* Rodapé do modal */
 .admin-prod-modal__footer {
-  padding: 1rem 1.5rem;
+  padding: 0.9rem 1.5rem;
   display: flex;
   justify-content: flex-end;
   border-top: 1px solid var(--border-gray);
   background: var(--white);
   border-radius: 0 0 var(--radius-xl) var(--radius-xl);
+  flex-shrink: 0;
+  gap: 10px;
+}
+
+@media (max-width: 860px) {
+  .admin-prod-row__cols { grid-template-columns: 1fr; }
+  .admin-prod-row__left { border-right: none; border-bottom: 1px solid var(--border-gray); }
+  .admin-prod-modal { max-width: 100%; }
 }
 
 @media (max-width: 600px) {
   .admin-prod-grid { grid-template-columns: repeat(2, 1fr); }
+  .admin-prod-row__head { grid-template-columns: 1fr 40px; }
+  .admin-prod-row__head .admin-product-row__tag { display: none; }
 }
 
 /* ── Stats editor ── */
@@ -1228,4 +1317,62 @@
 @media (max-width: 600px) {
   .admin-stat-row { grid-template-columns: 100px 1fr 36px; }
   .admin-feature-row__top { grid-template-columns: 52px 1fr 36px; }
+}
+
+/* ── Accordion editor (Especificações / Informações) ── */
+.admin-product-row__accordion-section {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px dashed var(--border-gray);
+}
+
+.admin-product-row__accordion-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.admin-accordion-row {
+  display: grid;
+  grid-template-columns: 200px 1fr 36px;
+  gap: 8px;
+  align-items: flex-start;
+  margin-bottom: 8px;
+}
+
+.admin-accordion-row__content {
+  min-height: 44px !important;
+  max-height: 120px;
+}
+
+@media (max-width: 600px) {
+  .admin-accordion-row { grid-template-columns: 1fr 36px; }
+  .admin-accordion-row__label { grid-column: 1; }
+  .admin-accordion-row__content { grid-column: 1; }
+}
+
+/* ── Demo images grid ── */
+.admin-demo-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.admin-demo-item {}
+
+.admin-demo-item__img {
+  position: relative;
+  aspect-ratio: 4/3;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: #f5f5f5;
+  border: 1px solid var(--border-gray);
+}
+
+.admin-demo-item__img img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }

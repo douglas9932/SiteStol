@@ -10,6 +10,7 @@
   line-height: 1.9;
   color: var(--gray-600);
   margin-bottom: 1.25rem;
+  white-space: pre-wrap;
 }
 
 .sobre__sidebar {

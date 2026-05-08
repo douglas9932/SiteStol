@@ -1,9 +1,11 @@
 import React, {
   createContext,
   useCallback,
+  useEffect,
   ReactNode,
 } from 'react';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
+import { getContent, setContent, KEYS } from '@/lib/contentService';
 
 /* ─── TYPES ─────────────────────────────────────────────────────────────────── */
 
@@ -19,6 +21,16 @@ export interface Category {
   color: string;
 }
 
+export interface ProductAccordionItem {
+  label: string;
+  content: string;
+}
+
+export interface DemoImage {
+  url: string;
+  caption?: string; // descrição opcional — só exibida se informada
+}
+
 export interface Product {
   id: number;
   icon: string;
@@ -26,9 +38,12 @@ export interface Product {
   description: string;
   image?: string;
   images?: string[];
+  demoImages?: DemoImage[]; // galeria demonstrativa com legenda opcional
   tag?: string;
   categoryIds: number[];
-  active?: boolean; // undefined = true (compatibilidade com dados antigos)
+  active?: boolean;
+  specifications?: ProductAccordionItem[];
+  info?: ProductAccordionItem[];
 }
 
 export interface HomeStat {
@@ -187,7 +202,40 @@ export function ContentProvider({ children }: { children: ReactNode }) {
   const [draft,      setDraft]      = useLocalStorage<ContentState['draft']>(STORAGE_KEY_DRAFT,           defaultDraft);
   const [categories, setCategories] = useLocalStorage<Category[]>(STORAGE_KEY_CATEGORIES,                defaultCategories);
 
+  // ── Carrega do Supabase ao iniciar ────────────────────────────────────────
+  // Roda uma vez. Se Supabase estiver configurado, sobrescreve o localStorage
+  // com os dados mais recentes da nuvem.
+  useEffect(() => {
+    async function loadFromSupabase() {
+      const [pub, dft, cats] = await Promise.all([
+        getContent(KEYS.PUBLISHED,  defaultPublished),
+        getContent(KEYS.DRAFT,      defaultDraft),
+        getContent(KEYS.CATEGORIES, defaultCategories),
+      ]);
+      setPublished(pub);
+      setDraft(dft);
+      setCategories(cats);
+    }
+    loadFromSupabase();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // roda só uma vez na montagem
+
   const content: ContentState = { published, draft, categories };
+
+  // ── Salva no Supabase sempre que published, draft ou categories mudam ────
+  // useLocalStorage já persiste no localStorage automaticamente.
+  // Aqui garantimos que o Supabase também seja atualizado.
+  useEffect(() => {
+    setContent(KEYS.PUBLISHED, published);
+  }, [published]);
+
+  useEffect(() => {
+    setContent(KEYS.DRAFT, draft);
+  }, [draft]);
+
+  useEffect(() => {
+    setContent(KEYS.CATEGORIES, categories);
+  }, [categories]);
 
   const updateDraft = useCallback(
     (page: 'home' | 'products' | 'sobre', data: any) => {

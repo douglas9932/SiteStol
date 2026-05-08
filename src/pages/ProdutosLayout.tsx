@@ -1,93 +1,8 @@
-import { useState, useRef, useEffect } from 'react';
-import { Product, Category } from '@/context/ContentContext';
+import { useState, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Product, Category, ProductAccordionItem } from '@/context/ContentContext';
 import Footer from '@/components/Footer';
 import './Produtos.css';
-
-/* ── Página full-screen do produto ── */
-function ProductPage({ product, onClose }: { product: Product; onClose: () => void }) {
-  const allImages = [
-    ...(product.image ? [product.image] : []),
-    ...(product.images ?? []),
-  ];
-  const [activeIdx, setActiveIdx] = useState(0);
-
-  // Bloqueia scroll do body enquanto aberto
-  useEffect(() => {
-    document.body.style.overflow = 'hidden';
-    return () => { document.body.style.overflow = ''; };
-  }, []);
-
-  // Fecha com Escape
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  }, [onClose]);
-
-  const prev = () => setActiveIdx((i) => (i - 1 + allImages.length) % allImages.length);
-  const next = () => setActiveIdx((i) => (i + 1) % allImages.length);
-
-  return (
-    <div className="prod-page">
-      {/* Header */}
-      <div className="prod-page__header">
-        <button className="prod-page__back" onClick={onClose}>
-          ← Voltar aos Produtos
-        </button>
-        <nav className="prod-page__breadcrumb">
-          <span onClick={onClose} style={{ cursor: 'pointer' }}>Produtos</span>
-          <span className="prod-page__breadcrumb-sep">›</span>
-          <span className="prod-page__breadcrumb-cur">{product.title}</span>
-        </nav>
-      </div>
-
-      {/* Body */}
-      <div className="prod-page__body">
-
-        {/* ── Galeria ── */}
-        <div className="prod-page__gallery">
-          <div className="prod-page__main-img">
-            {allImages.length > 1 && (
-              <button className="prod-page__arrow prod-page__arrow--prev" onClick={prev}>‹</button>
-            )}
-            {allImages.length > 0
-              ? <img src={allImages[activeIdx]} alt={product.title} />
-              : <div className="produto-card__img-placeholder" style={{ fontSize: '5rem' }}>{product.icon || '📦'}</div>
-            }
-            {allImages.length > 1 && (
-              <button className="prod-page__arrow prod-page__arrow--next" onClick={next}>›</button>
-            )}
-          </div>
-
-          {allImages.length > 1 && (
-            <div className="prod-page__thumbs">
-              {allImages.map((img, i) => (
-                <button
-                  key={i}
-                  className={`prod-page__thumb ${i === activeIdx ? 'prod-page__thumb--active' : ''}`}
-                  onClick={() => setActiveIdx(i)}
-                >
-                  <img src={img} alt={`${product.title} ${i + 1}`} />
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* ── Info ── */}
-        <div className="prod-page__info">
-          {product.tag && (
-            <span className="prod-page__tag">{product.tag}</span>
-          )}
-          <h1 className="prod-page__title">{product.title}</h1>
-          <div className="prod-page__divider" />
-          <p className="prod-page__desc">{product.description}</p>
-        </div>
-      </div>
-      <Footer />
-    </div>
-  );
-}
 
 interface Props {
   headline: string;
@@ -99,7 +14,6 @@ interface Props {
 export default function ProdutosLayout({ headline, subheadline, products, categories }: Props) {
   const [search,         setSearch]         = useState('');
   const [selectedCatIds, setSelectedCatIds] = useState<number[]>([]);
-  const [modalProduct,   setModalProduct]   = useState<Product | null>(null);
   const [page,           setPage]           = useState(1);
 
   const ITEMS_PER_PAGE = 16; // 4 colunas × 4 linhas
@@ -126,6 +40,7 @@ export default function ProdutosLayout({ headline, subheadline, products, catego
   const totalPages  = Math.max(1, Math.ceil(filtered.length / ITEMS_PER_PAGE));
   const safePage    = Math.min(page, totalPages);
   const paginated   = filtered.slice((safePage - 1) * ITEMS_PER_PAGE, safePage * ITEMS_PER_PAGE);
+  const navigate  = useNavigate();
   const gridRef = useRef<HTMLDivElement>(null);
 
   const goToPage = (n: number) => {
@@ -142,7 +57,7 @@ export default function ProdutosLayout({ headline, subheadline, products, catego
 
   return (
     <>
-      {modalProduct && <ProductPage product={modalProduct} onClose={() => setModalProduct(null)} />}
+
       {/* Hero */}
       <div className="page-hero">
         <p className="page-hero__label">Nossos Serviços</p>
@@ -224,7 +139,7 @@ export default function ProdutosLayout({ headline, subheadline, products, catego
                           ? p.description.slice(0, 80).trimEnd() + '…'
                           : p.description}
                       </p>
-                      <button className="produto-card__saiba-mais" onClick={() => setModalProduct(p)}>Saiba mais</button>
+                      <button className="produto-card__saiba-mais" onClick={() => navigate('/produtos/' + p.id)}>Saiba mais</button>
                     </div>
                   </div>
                 ))}

@@ -5,6 +5,7 @@ import Navbar      from '@/components/Navbar';
 import Home        from '@/pages/Home';
 import Sobre       from '@/pages/Sobre';
 import Produtos    from '@/pages/Produtos';
+import ProdutoDetalhe from '@/pages/ProdutoDetalhe';
 import Noticias    from '@/pages/Noticias';
 import TabelaCalibracao from '@/pages/TabelaCalibracao';
 import TestesStol  from '@/pages/TestesStol';
@@ -39,7 +40,8 @@ export default function AppRouter() {
         {/* ── Public pages (with Navbar) ── */}
         <Route path="/" element={<Layout><Home /></Layout>} />
         <Route path="/sobre"      element={<Layout><Sobre /></Layout>} />
-        <Route path="/produtos"   element={<Layout><Produtos /></Layout>} />
+        <Route path="/produtos"      element={<Layout><Produtos /></Layout>} />
+        <Route path="/produtos/:id"  element={<Layout><ProdutoDetalhe /></Layout>} />
         <Route path="/noticias"   element={<Layout><Noticias /></Layout>} />
         <Route path="/calibracao" element={<Layout><TabelaCalibracao /></Layout>} />
         <Route path="/stol"       element={<Layout><TestesStol /></Layout>} />
