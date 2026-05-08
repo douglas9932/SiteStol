@@ -5,7 +5,12 @@ import React, {
   ReactNode,
 } from 'react';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
-import { getContent, setContent, KEYS } from '@/lib/contentService';
+import {
+  getHomePublished, getHomeDraft, saveHomePublished, saveHomeDraft,
+  getSobrePublished, getSobreDraft, saveSobrePublished, saveSobreDraft,
+  getProductsPublished, getProductsDraft, saveProductsPublished, saveProductsDraft,
+  getCategories, saveCategories,
+} from '@/lib/contentService';
 
 /* ─── TYPES ─────────────────────────────────────────────────────────────────── */
 
@@ -202,40 +207,42 @@ export function ContentProvider({ children }: { children: ReactNode }) {
   const [draft,      setDraft]      = useLocalStorage<ContentState['draft']>(STORAGE_KEY_DRAFT,           defaultDraft);
   const [categories, setCategories] = useLocalStorage<Category[]>(STORAGE_KEY_CATEGORIES,                defaultCategories);
 
-  // ── Carrega do Supabase ao iniciar ────────────────────────────────────────
-  // Roda uma vez. Se Supabase estiver configurado, sobrescreve o localStorage
-  // com os dados mais recentes da nuvem.
+  // ── Carrega de cada tabela Supabase ao iniciar ────────────────────────────
   useEffect(() => {
-    async function loadFromSupabase() {
-      const [pub, dft, cats] = await Promise.all([
-        getContent(KEYS.PUBLISHED,  defaultPublished),
-        getContent(KEYS.DRAFT,      defaultDraft),
-        getContent(KEYS.CATEGORIES, defaultCategories),
+    async function load() {
+      const [
+        homePub, homeDft,
+        sobrePub, sobreDft,
+        prodPub, prodDft,
+        cats,
+      ] = await Promise.all([
+        getHomePublished(defaultPublished.home),
+        getHomeDraft(defaultDraft.home),
+        getSobrePublished(defaultPublished.sobre),
+        getSobreDraft(defaultDraft.sobre),
+        getProductsPublished(defaultPublished.products),
+        getProductsDraft(defaultDraft.products),
+        getCategories(defaultCategories),
       ]);
-      setPublished(pub);
-      setDraft(dft);
+
+      setPublished({ home: homePub, sobre: sobrePub, products: prodPub });
+      setDraft({     home: homeDft, sobre: sobreDft, products: prodDft });
       setCategories(cats);
     }
-    loadFromSupabase();
+    load();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // roda só uma vez na montagem
+  }, []);
 
   const content: ContentState = { published, draft, categories };
 
-  // ── Salva no Supabase sempre que published, draft ou categories mudam ────
-  // useLocalStorage já persiste no localStorage automaticamente.
-  // Aqui garantimos que o Supabase também seja atualizado.
-  useEffect(() => {
-    setContent(KEYS.PUBLISHED, published);
-  }, [published]);
-
-  useEffect(() => {
-    setContent(KEYS.DRAFT, draft);
-  }, [draft]);
-
-  useEffect(() => {
-    setContent(KEYS.CATEGORIES, categories);
-  }, [categories]);
+  // ── Sincroniza com Supabase quando cada seção muda ────────────────────────
+  useEffect(() => { saveHomePublished(published.home);     }, [published.home]);
+  useEffect(() => { saveSobrePublished(published.sobre);   }, [published.sobre]);
+  useEffect(() => { saveProductsPublished(published.products); }, [published.products]);
+  useEffect(() => { saveHomeDraft(draft.home);             }, [draft.home]);
+  useEffect(() => { saveSobreDraft(draft.sobre);           }, [draft.sobre]);
+  useEffect(() => { saveProductsDraft(draft.products);     }, [draft.products]);
+  useEffect(() => { saveCategories(categories);            }, [categories]);
 
   const updateDraft = useCallback(
     (page: 'home' | 'products' | 'sobre', data: any) => {
