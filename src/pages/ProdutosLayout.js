@@ -13,7 +13,8 @@ export default function ProdutosLayout({ headline = '', subheadline = '', produc
     };
     const handleSearch = (v) => { setSearch(v); setPage(1); };
     const clearFilters = () => { setSearch(''); setSelectedCatIds([]); setPage(1); };
-    const filtered = products.filter((p) => {
+    const safeProducts = Array.isArray(products) ? products : [];
+    const filtered = safeProducts.filter((p) => {
         if (p.active === false)
             return false; // oculta inativos no site
         const matchName = p.title.toLowerCase().includes(search.toLowerCase());

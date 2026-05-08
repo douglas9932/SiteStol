@@ -109,18 +109,25 @@ export async function saveSobreDraft(value) {
     await sbSet('sobre_content', 'draft', value);
 }
 // ── PRODUTOS ──
-export async function getProductsPublished(fallback) {
-    // Compatibilidade: tenta nova tabela, cai no LS antigo se vazio
-    const lsFallback = lsGet(LS.HOME_PUB, fallback); // published antigo tinha products embutido
-    const v = await sbGet('products_content', 'published', lsFallback);
-    lsSet(LS.PROD_PUB, v);
+function ensureProductsArray(v) {
+    if (v && typeof v === 'object' && !Array.isArray(v.products)) {
+        return { ...v, products: [] };
+    }
     return v;
+}
+export async function getProductsPublished(fallback) {
+    const lsFallback = lsGet(LS.HOME_PUB, fallback);
+    const v = await sbGet('products_content', 'published', lsFallback);
+    const safe = ensureProductsArray(v);
+    lsSet(LS.PROD_PUB, safe);
+    return safe;
 }
 export async function getProductsDraft(fallback) {
     const lsFallback = lsGet(LS.HOME_DFT, fallback);
     const v = await sbGet('products_content', 'draft', lsFallback);
-    lsSet(LS.PROD_DFT, v);
-    return v;
+    const safe = ensureProductsArray(v);
+    lsSet(LS.PROD_DFT, safe);
+    return safe;
 }
 export async function saveProductsPublished(value) {
     lsSet(LS.PROD_PUB, value);

@@ -109,18 +109,26 @@ export async function saveSobreDraft(value: unknown): Promise<void> {
 }
 
 // ── PRODUTOS ──
-export async function getProductsPublished<T>(fallback: T): Promise<T> {
-  // Compatibilidade: tenta nova tabela, cai no LS antigo se vazio
-  const lsFallback = lsGet<T>(LS.HOME_PUB, fallback); // published antigo tinha products embutido
-  const v = await sbGet<T>('products_content', 'published', lsFallback);
-  lsSet(LS.PROD_PUB, v);
+function ensureProductsArray(v: any): any {
+  if (v && typeof v === 'object' && !Array.isArray(v.products)) {
+    return { ...v, products: [] };
+  }
   return v;
+}
+
+export async function getProductsPublished<T>(fallback: T): Promise<T> {
+  const lsFallback = lsGet<T>(LS.HOME_PUB, fallback);
+  const v = await sbGet<T>('products_content', 'published', lsFallback);
+  const safe = ensureProductsArray(v) as T;
+  lsSet(LS.PROD_PUB, safe);
+  return safe;
 }
 export async function getProductsDraft<T>(fallback: T): Promise<T> {
   const lsFallback = lsGet<T>(LS.HOME_DFT, fallback);
   const v = await sbGet<T>('products_content', 'draft', lsFallback);
-  lsSet(LS.PROD_DFT, v);
-  return v;
+  const safe = ensureProductsArray(v) as T;
+  lsSet(LS.PROD_DFT, safe);
+  return safe;
 }
 export async function saveProductsPublished(value: unknown): Promise<void> {
   lsSet(LS.PROD_PUB, value);

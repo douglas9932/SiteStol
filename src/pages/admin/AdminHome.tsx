@@ -472,7 +472,7 @@ export default function AdminHome() {
   const [stats,            setStats]            = useState<HomeStat[]>(structuredClone(content.draft.home?.stats ?? []));
   const [featuresTitle,    setFeaturesTitle]    = useState(content.draft.home?.featuresTitle    ?? '');
   const [features,         setFeatures]         = useState<HomeFeature[]>(structuredClone(content.draft.home?.features ?? []));
-  const [products,         setProducts]         = useState<Product[]>(structuredClone(content.draft.products?.products ?? []));
+  const [products,         setProducts]         = useState<Product[]>(Array.isArray(content.draft.products?.products) ? structuredClone(content.draft.products.products) : []);
   const [prodHeadline,     setProdHeadline]     = useState(content.draft.products?.headline    ?? '');
   const [prodSubline,      setProdSubline]      = useState(content.draft.products?.subheadline ?? '');
   const [newImageUrl,  setNewImageUrl]  = useState('');
@@ -514,7 +514,7 @@ export default function AdminHome() {
     setStats(structuredClone(content.draft.home.stats      ?? []));
     setFeaturesTitle(content.draft.home.featuresTitle      ?? '');
     setFeatures(structuredClone(content.draft.home.features ?? []));
-    setProducts(structuredClone(content.draft.products.products));
+    setProducts(Array.isArray(content.draft.products?.products) ? structuredClone(content.draft.products.products) : []);
     setProdHeadline(content.draft.products.headline);
     setProdSubline(content.draft.products.subheadline);
     setSobreHeroTitle(content.draft.sobre?.heroTitle       ?? '');
@@ -608,7 +608,7 @@ export default function AdminHome() {
       discardDraft('sobre');
     } else if (activeTab === 'produtos') {
       const pub = content.published.products;
-      setProducts(structuredClone(pub.products));
+      setProducts(Array.isArray(pub.products) ? structuredClone(pub.products) : []);
       setProdHeadline(pub.headline);
       setProdSubline(pub.subheadline);
       discardDraft('products');
@@ -999,7 +999,7 @@ export default function AdminHome() {
                     <div>
                       <h2 className="admin__section-title">📦 Produtos</h2>
                       <p className="admin__section-desc">
-                        {products.filter(p => p.active !== false).length} ativos · {products.filter(p => p.active === false).length} inativos
+                        {(products ?? []).filter(p => p.active !== false).length} ativos · {(products ?? []).filter(p => p.active === false).length} inativos
                       </p>
                     </div>
                     <button className="btn btn-primary" onClick={() => { addProduct(); setEditingProductId(Date.now()); }}>
@@ -1021,7 +1021,7 @@ export default function AdminHome() {
                   </div>
 
                   {/* Grid visual */}
-                  {products.length > 0 ? (
+                  {Array.isArray(products) && products.length > 0 ? (
                     <div className="admin-prod-grid">
                       {products
                         .filter(p => p.title.toLowerCase().includes(prodSearch.toLowerCase()))
