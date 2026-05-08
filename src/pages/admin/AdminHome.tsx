@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useContent } from '@/hooks/useContent';
 import { CarouselImage, Product, Category, HomeStat, HomeFeature, SobreTimelineItem, ProductAccordionItem, DemoImage } from '@/context/ContentContext';
 import './AdminHome.css';
@@ -461,6 +461,7 @@ function CategoryManager({ categories, onAdd, onUpdate, onRemove, showToast }: {
 /* ─── MAIN ─────────────────────────────────────────────────────────────────── */
 export default function AdminHome() {
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const { content, updateDraft, publishDirect, discardDraft, addCategory, updateCategory, removeCategory } = useContent();
 
   const [homeImages,       setHomeImages]       = useState<CarouselImage[]>(structuredClone(content.draft.home?.carouselImages ?? []));
@@ -744,6 +745,18 @@ export default function AdminHome() {
 
           {/* Barra de ações — alinhada à esquerda, no topo da área de conteúdo */}
           <div className="admin__actionbar">
+            {/* Logout */}
+            <button
+              className="btn btn-ghost"
+              style={{ marginRight: 'auto', color: 'var(--gray-400)', fontSize: '12px' }}
+              onClick={() => {
+                sessionStorage.removeItem('admin_auth');
+                navigate('/login', { replace: true });
+              }}
+            >
+              ⎋ Sair
+            </button>
+
             {activeTab === 'categorias' ? (
               <span className="admin__cat-notice">✓ Categorias salvas automaticamente</span>
             ) : (

@@ -10,8 +10,10 @@ import Noticias    from '@/pages/Noticias';
 import TabelaCalibracao from '@/pages/TabelaCalibracao';
 import TestesStol  from '@/pages/TestesStol';
 import Contatos    from '@/pages/Contatos';
+import Login       from '@/pages/Login';
 import AdminHome   from '@/pages/admin/AdminHome';
 import PreviewPage from '@/pages/admin/PreviewPage';
+import PrivateRoute from '@/components/PrivateRoute';
 
 function ScrollToTop() {
   const { pathname } = useLocation();
@@ -28,7 +30,7 @@ function Layout({ children }: { children: React.ReactNode }) {
   );
 }
 
-function AdminLayout({ children }: { children: React.ReactNode }) {
+function Standalone({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
@@ -38,7 +40,7 @@ export default function AppRouter() {
       <ScrollToTop />
       <Routes>
         {/* ── Public pages (with Navbar) ── */}
-        <Route path="/" element={<Layout><Home /></Layout>} />
+        <Route path="/"           element={<Layout><Home /></Layout>} />
         <Route path="/sobre"      element={<Layout><Sobre /></Layout>} />
         <Route path="/produtos"      element={<Layout><Produtos /></Layout>} />
         <Route path="/produtos/:id"  element={<Layout><ProdutoDetalhe /></Layout>} />
@@ -47,9 +49,12 @@ export default function AppRouter() {
         <Route path="/stol"       element={<Layout><TestesStol /></Layout>} />
         <Route path="/contatos"   element={<Layout><Contatos /></Layout>} />
 
-        {/* ── Admin (without Navbar) ── */}
-        <Route path="/admin"   element={<AdminLayout><AdminHome /></AdminLayout>} />
-        <Route path="/preview" element={<AdminLayout><PreviewPage /></AdminLayout>} />
+        {/* ── Login — sem Navbar, acessível apenas por URL direta ── */}
+        <Route path="/login" element={<Standalone><Login /></Standalone>} />
+
+        {/* ── Admin — protegido, exige login ── */}
+        <Route path="/admin"   element={<PrivateRoute><Standalone><AdminHome /></Standalone></PrivateRoute>} />
+        <Route path="/preview" element={<PrivateRoute><Standalone><PreviewPage /></Standalone></PrivateRoute>} />
       </Routes>
     </>
   );
