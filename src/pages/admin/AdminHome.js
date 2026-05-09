@@ -2,6 +2,7 @@ import { jsx as _jsx, jsxs as _jsxs, Fragment as _Fragment } from "react/jsx-run
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
+import { getCompanySettings, saveCompanySettings, applyCompanyColors } from '@/lib/contentService';
 import { useContent } from '@/hooks/useContent';
 import './AdminHome.css';
 /* ─── Toast ── */
@@ -161,6 +162,14 @@ export default function AdminHome() {
     const [editingProductId, setEditingProductId] = useState(null);
     const [prodSearch, setProdSearch] = useState('');
     const [showAcessoModal, setShowAcessoModal] = useState(false);
+    // ── Empresa ──
+    const [company, setCompany] = useState({ name: '', icon_url: '', color_primary: '#0a1628', color_secondary: '#c8972a' });
+    const [companySaving, setCompanySaving] = useState(false);
+    const [companyMsg, setCompanyMsg] = useState(null);
+    const companyIconRef = useRef(null);
+    useEffect(() => {
+        getCompanySettings().then(s => { setCompany(s); applyCompanyColors(s); });
+    }, []);
     const authData = JSON.parse(sessionStorage.getItem('admin_auth') ?? '{}');
     const [acessoName, setAcessoName] = useState(authData.name ?? '');
     const [acessoEmail, setAcessoEmail] = useState(authData.email ?? '');
@@ -347,8 +356,11 @@ export default function AdminHome() {
         { key: 'sobre', label: 'Sobre', icon: '📋' },
         { key: 'categorias', label: 'Categorias', icon: '🏷' },
         { key: 'produtos', label: 'Produtos', icon: '📦' },
+        { key: 'empresa', label: 'Empresa', icon: '🏢' },
     ];
-    return (_jsxs("div", { className: "admin", children: [showModal && _jsx(PublishModal, { page: activeTab, onConfirm: confirmPublish, onCancel: () => setShowModal(false) }), _jsxs("div", { className: "admin__layout", children: [_jsxs("aside", { className: "admin__sidebar", children: [_jsxs("div", { className: "admin__sidebar-brand", children: [_jsx("div", { className: "admin__logo", children: "AT" }), _jsxs("div", { children: [_jsx("p", { className: "admin__title", children: "AeroTech Brasil" }), _jsx("p", { className: "admin__subtitle", children: "Painel de Administra\u00E7\u00E3o" })] })] }), _jsxs("nav", { className: "admin__sidebar-nav", children: [_jsx("p", { className: "admin__sidebar-section-label", children: "Conte\u00FAdo" }), TABS.map(({ key, label, icon }) => {
+    return (_jsxs("div", { className: "admin", children: [showModal && _jsx(PublishModal, { page: activeTab, onConfirm: confirmPublish, onCancel: () => setShowModal(false) }), _jsxs("div", { className: "admin__layout", children: [_jsxs("aside", { className: "admin__sidebar", children: [_jsxs("div", { className: "admin__sidebar-brand", children: [company.icon_url
+                                        ? _jsx("img", { src: company.icon_url, alt: company.name, className: "admin__logo-img" })
+                                        : _jsx("div", { className: "admin__logo", children: (company.name || 'AT').slice(0, 2).toUpperCase() }), _jsxs("div", { children: [_jsx("p", { className: "admin__title", children: company.name || 'Minha Empresa' }), _jsx("p", { className: "admin__subtitle", children: "Painel de Administra\u00E7\u00E3o" })] })] }), _jsxs("nav", { className: "admin__sidebar-nav", children: [_jsx("p", { className: "admin__sidebar-section-label", children: "Conte\u00FAdo" }), TABS.map(({ key, label, icon }) => {
                                         const hasDot = key !== 'categorias' && key !== activeTab && (() => {
                                             if (key === 'home') {
                                                 const pub = content.published.home;
@@ -394,7 +406,73 @@ export default function AdminHome() {
                                                     if (!p)
                                                         return null;
                                                     return (_jsx("div", { className: "admin-prod-modal__overlay", onClick: () => setEditingProductId(null), children: _jsxs("div", { className: "admin-prod-modal", onClick: e => e.stopPropagation(), children: [_jsxs("div", { className: "admin-prod-modal__header", children: [_jsx("h2", { children: "\u270F Editar Produto" }), _jsx("button", { className: "produto-modal__close", onClick: () => setEditingProductId(null), children: "\u2715" })] }), _jsx("div", { className: "admin-prod-modal__body", children: _jsx(ProductRow, { product: p, categories: content.categories, onChange: updateProduct, onCategoriesChange: updateProductCategories, onGalleryChange: updateProductGallery, onSpecsChange: updateProductSpecs, onInfoChange: updateProductInfo, onDemoImagesChange: updateProductDemoImages, onRemove: (id) => { removeProduct(id); setEditingProductId(null); } }) }), _jsx("div", { className: "admin-prod-modal__footer", children: _jsx("button", { className: "btn btn-outline", onClick: () => setEditingProductId(null), children: "Fechar" }) })] }) }));
-                                                })()] })), activeTab === 'categorias' && (_jsx(CategoryManager, { categories: content.categories, onAdd: addCategory, onUpdate: updateCategory, onRemove: removeCategory, showToast: showToast }))] }) })] })] }), showAcessoModal && (_jsx("div", { className: "admin-prod-modal__overlay", onClick: () => { setShowAcessoModal(false); setAcessoMsg(null); }, children: _jsxs("div", { className: "admin-prod-modal", style: { maxWidth: 480 }, onClick: e => e.stopPropagation(), children: [_jsxs("div", { className: "admin-prod-modal__header", children: [_jsx("h2", { children: "\u2699 Meu Acesso" }), _jsx("button", { className: "produto-modal__close", style: { color: 'white', background: 'rgba(255,255,255,0.1)' }, onClick: () => { setShowAcessoModal(false); setAcessoMsg(null); }, children: "\u2715" })] }), _jsxs("div", { className: "admin-prod-modal__body", children: [_jsxs("div", { className: "admin__field", children: [_jsx("label", { className: "form-label", children: "Nome" }), _jsx("input", { className: "form-input", value: acessoName, onChange: e => setAcessoName(e.target.value), placeholder: "Seu nome" })] }), _jsxs("div", { className: "admin__field", children: [_jsx("label", { className: "form-label", children: "E-mail" }), _jsx("input", { className: "form-input", type: "email", value: acessoEmail, onChange: e => setAcessoEmail(e.target.value), placeholder: "seu@email.com" })] }), _jsxs("div", { className: "admin__field", children: [_jsxs("label", { className: "form-label", children: ["Nova Senha ", _jsx("span", { style: { fontWeight: 400, color: 'var(--gray-400)', fontSize: 11 }, children: "(deixe em branco para manter a atual)" })] }), _jsx("input", { className: "form-input", type: "password", value: acessoPassword, onChange: e => setAcessoPassword(e.target.value), placeholder: "\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022" })] }), _jsxs("div", { className: "admin__field", children: [_jsx("label", { className: "form-label", children: "Confirmar Nova Senha" }), _jsx("input", { className: "form-input", type: "password", value: acessoConfirm, onChange: e => setAcessoConfirm(e.target.value), placeholder: "\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022" })] }), acessoMsg && (_jsxs("div", { style: {
+                                                })()] })), activeTab === 'categorias' && (_jsx(CategoryManager, { categories: content.categories, onAdd: addCategory, onUpdate: updateCategory, onRemove: removeCategory, showToast: showToast })), activeTab === 'empresa' && (_jsxs("div", { className: "admin__section", children: [_jsx("h2", { className: "admin__section-title", children: "\uD83C\uDFE2 Configura\u00E7\u00F5es da Empresa" }), _jsx("p", { className: "admin__section-desc", style: { marginBottom: '1.5rem' }, children: "Essas informa\u00E7\u00F5es s\u00E3o exibidas na aba do navegador, no navbar e em todo o site." }), _jsxs("div", { className: "admin__field", children: [_jsx("label", { className: "form-label", children: "Nome da Empresa" }), _jsx("input", { className: "form-input", placeholder: "Ex: AeroTech Brasil", value: company.name, onChange: e => setCompany(prev => ({ ...prev, name: e.target.value })) }), _jsx("p", { className: "admin__hint", children: "Aparece na aba do navegador, navbar e rodap\u00E9." })] }), _jsxs("div", { className: "admin__field", style: { marginTop: '1.25rem' }, children: [_jsx("label", { className: "form-label", children: "\u00CDcone / Logo" }), _jsxs("div", { style: { display: 'flex', alignItems: 'center', gap: 16, marginBottom: 12 }, children: [_jsx("div", { style: {
+                                                                        width: 64, height: 64, borderRadius: 12,
+                                                                        background: company.icon_url ? '#f5f5f5' : 'var(--gold)',
+                                                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                                                        border: '1px solid var(--border-gray)', overflow: 'hidden', flexShrink: 0,
+                                                                    }, children: company.icon_url
+                                                                        ? _jsx("img", { src: company.icon_url, alt: "\u00EDcone", style: { width: '100%', height: '100%', objectFit: 'contain', padding: 6 } })
+                                                                        : _jsx("span", { style: { fontSize: 22, fontWeight: 900, color: 'var(--navy)' }, children: (company.name || 'AT').slice(0, 2).toUpperCase() }) }), _jsxs("div", { children: [_jsx("input", { ref: companyIconRef, type: "file", accept: "image/*", style: { display: 'none' }, onChange: e => {
+                                                                                const file = e.target.files?.[0];
+                                                                                if (!file)
+                                                                                    return;
+                                                                                const reader = new FileReader();
+                                                                                reader.onload = ev => setCompany(prev => ({ ...prev, icon_url: ev.target?.result }));
+                                                                                reader.readAsDataURL(file);
+                                                                                e.target.value = '';
+                                                                            } }), _jsx("button", { className: "btn admin__upload-btn", onClick: () => companyIconRef.current?.click(), children: "\uD83D\uDCC1 Carregar imagem" }), company.icon_url && (_jsx("button", { className: "btn btn-danger", style: { fontSize: '12px', padding: '6px 12px', marginLeft: 8 }, onClick: () => setCompany(prev => ({ ...prev, icon_url: '' })), children: "\uD83D\uDDD1 Remover" }))] })] }), _jsx("input", { className: "form-input", placeholder: "Ou cole a URL do \u00EDcone...", value: company.icon_url?.startsWith('data:') ? '' : (company.icon_url ?? ''), onChange: e => setCompany(prev => ({ ...prev, icon_url: e.target.value })) }), _jsx("p", { className: "admin__hint", children: "Recomendado: PNG ou SVG quadrado (ex: 512\u00D7512px). Aparece na aba do navegador e no navbar." })] }), _jsxs("div", { className: "admin__field", style: { marginTop: '1.5rem' }, children: [_jsx("label", { className: "form-label", children: "\uD83C\uDFA8 Cores da Empresa" }), _jsx("p", { className: "admin__section-desc", style: { marginBottom: '1rem' }, children: "Aplicadas em todo o site: navbar, footer, bot\u00F5es, destaques e painel administrativo." }), _jsxs("div", { className: "admin-color-grid", children: [_jsxs("div", { className: "admin-color-item", children: [_jsx("div", { className: "admin-color-preview", style: { background: company.color_primary || '#0a1628' } }), _jsxs("div", { className: "admin-color-info", children: [_jsx("span", { className: "admin-color-label", children: "Cor Principal" }), _jsx("span", { className: "admin-color-desc", children: "Navbar, footer, fundos escuros" })] }), _jsx("input", { type: "color", className: "admin-color-picker", value: company.color_primary || '#0a1628', onChange: e => {
+                                                                                const updated = { ...company, color_primary: e.target.value };
+                                                                                setCompany(updated);
+                                                                                applyCompanyColors(updated);
+                                                                            } })] }), _jsxs("div", { className: "admin-color-item", children: [_jsx("div", { className: "admin-color-preview", style: { background: company.color_secondary || '#c8972a' } }), _jsxs("div", { className: "admin-color-info", children: [_jsx("span", { className: "admin-color-label", children: "Cor de Destaque" }), _jsx("span", { className: "admin-color-desc", children: "Bot\u00F5es, bordas ativas, textos em evid\u00EAncia" })] }), _jsx("input", { type: "color", className: "admin-color-picker", value: company.color_secondary || '#c8972a', onChange: e => {
+                                                                                const updated = { ...company, color_secondary: e.target.value };
+                                                                                setCompany(updated);
+                                                                                applyCompanyColors(updated);
+                                                                            } })] })] }), _jsxs("div", { className: "admin-color-preview-bar", style: { marginTop: 16 }, children: [_jsxs("div", { style: {
+                                                                        background: company.color_primary || '#0a1628',
+                                                                        padding: '14px 20px',
+                                                                        borderRadius: 'var(--radius-md) var(--radius-md) 0 0',
+                                                                        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                                                                    }, children: [_jsx("span", { style: { color: 'white', fontWeight: 700, fontSize: 13 }, children: "Preview do Navbar" }), _jsx("div", { style: { display: 'flex', gap: 8 }, children: ['Sobre', 'Produtos', 'Contatos'].map(t => (_jsx("span", { style: { color: 'rgba(255,255,255,0.6)', fontSize: 12 }, children: t }, t))) })] }), _jsxs("div", { style: {
+                                                                        background: '#f5f5f5', padding: '12px 20px',
+                                                                        borderRadius: '0 0 var(--radius-md) var(--radius-md)',
+                                                                        display: 'flex', gap: 10, alignItems: 'center',
+                                                                    }, children: [_jsx("div", { style: {
+                                                                                background: company.color_secondary || '#c8972a',
+                                                                                color: company.color_primary || '#0a1628',
+                                                                                padding: '6px 16px', borderRadius: 20,
+                                                                                fontSize: 12, fontWeight: 800,
+                                                                            }, children: "Bot\u00E3o" }), _jsx("span", { style: { color: company.color_secondary || '#c8972a', fontSize: 13, fontWeight: 700 }, children: "Texto em destaque" })] })] }), _jsx("button", { className: "btn btn-outline", style: { marginTop: 12, fontSize: 12 }, onClick: () => {
+                                                                const reset = { ...company, color_primary: '#0a1628', color_secondary: '#c8972a' };
+                                                                setCompany(reset);
+                                                                applyCompanyColors(reset);
+                                                            }, children: "\u21BA Restaurar cores padr\u00E3o" })] }), companyMsg && (_jsxs("div", { style: {
+                                                        padding: '10px 14px', borderRadius: 8, fontSize: 13, marginTop: 16,
+                                                        background: companyMsg.type === 'success' ? 'var(--success-bg)' : 'var(--danger-bg)',
+                                                        color: companyMsg.type === 'success' ? 'var(--success)' : 'var(--danger)',
+                                                        border: `1px solid ${companyMsg.type === 'success' ? '#86efac' : '#fca5a5'}`,
+                                                    }, children: [companyMsg.type === 'success' ? '✓ ' : '✕ ', companyMsg.text] })), _jsx("button", { className: "btn btn-primary", style: { marginTop: '1.5rem' }, disabled: companySaving, onClick: async () => {
+                                                        if (!company.name.trim()) {
+                                                            setCompanyMsg({ type: 'error', text: 'O nome da empresa é obrigatório.' });
+                                                            return;
+                                                        }
+                                                        setCompanySaving(true);
+                                                        setCompanyMsg(null);
+                                                        try {
+                                                            await saveCompanySettings(company);
+                                                            setCompanyMsg({ type: 'success', text: 'Configurações salvas com sucesso!' });
+                                                            // Atualiza title imediatamente e recarrega para refletir em toda a UI
+                                                            document.title = company.name;
+                                                            setTimeout(() => window.location.reload(), 800);
+                                                        }
+                                                        catch {
+                                                            setCompanyMsg({ type: 'error', text: 'Erro ao salvar. Tente novamente.' });
+                                                        }
+                                                        finally {
+                                                            setCompanySaving(false);
+                                                        }
+                                                    }, children: companySaving ? 'Salvando...' : '💾 Salvar' })] }))] }) })] })] }), showAcessoModal && (_jsx("div", { className: "admin-prod-modal__overlay", onClick: () => { setShowAcessoModal(false); setAcessoMsg(null); }, children: _jsxs("div", { className: "admin-prod-modal", style: { maxWidth: 480 }, onClick: e => e.stopPropagation(), children: [_jsxs("div", { className: "admin-prod-modal__header", children: [_jsx("h2", { children: "\u2699 Meu Acesso" }), _jsx("button", { className: "produto-modal__close", style: { color: 'white', background: 'rgba(255,255,255,0.1)' }, onClick: () => { setShowAcessoModal(false); setAcessoMsg(null); }, children: "\u2715" })] }), _jsxs("div", { className: "admin-prod-modal__body", children: [_jsxs("div", { className: "admin__field", children: [_jsx("label", { className: "form-label", children: "Nome" }), _jsx("input", { className: "form-input", value: acessoName, onChange: e => setAcessoName(e.target.value), placeholder: "Seu nome" })] }), _jsxs("div", { className: "admin__field", children: [_jsx("label", { className: "form-label", children: "E-mail" }), _jsx("input", { className: "form-input", type: "email", value: acessoEmail, onChange: e => setAcessoEmail(e.target.value), placeholder: "seu@email.com" })] }), _jsxs("div", { className: "admin__field", children: [_jsxs("label", { className: "form-label", children: ["Nova Senha ", _jsx("span", { style: { fontWeight: 400, color: 'var(--gray-400)', fontSize: 11 }, children: "(deixe em branco para manter a atual)" })] }), _jsx("input", { className: "form-input", type: "password", value: acessoPassword, onChange: e => setAcessoPassword(e.target.value), placeholder: "\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022" })] }), _jsxs("div", { className: "admin__field", children: [_jsx("label", { className: "form-label", children: "Confirmar Nova Senha" }), _jsx("input", { className: "form-input", type: "password", value: acessoConfirm, onChange: e => setAcessoConfirm(e.target.value), placeholder: "\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022" })] }), acessoMsg && (_jsxs("div", { style: {
                                         padding: '10px 14px', borderRadius: 8, fontSize: 13,
                                         background: acessoMsg.type === 'success' ? 'var(--success-bg)' : 'var(--danger-bg)',
                                         color: acessoMsg.type === 'success' ? 'var(--success)' : 'var(--danger)',

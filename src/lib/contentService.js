@@ -147,6 +147,105 @@ export async function saveCategories(value) {
     lsSet(LS.CATEGORIES, value);
     await sbSet('categories_content', 'data', value);
 }
+const defaultCompany = {
+    name: '', icon_url: '',
+    color_primary: '#0a1628', color_secondary: '#c8972a',
+};
+export async function getCompanySettings() {
+    if (!supabase)
+        return lsGet('aerotech_company', defaultCompany);
+    try {
+        const { data, error } = await supabase
+            .from('company_settings')
+            .select('id, name, icon_url, color_primary, color_secondary')
+            .single();
+        if (error || !data)
+            return defaultCompany;
+        const result = {
+            id: data.id,
+            name: data.name ?? '',
+            icon_url: data.icon_url ?? '',
+            color_primary: data.color_primary ?? '#0a1628',
+            color_secondary: data.color_secondary ?? '#c8972a',
+        };
+        lsSet('aerotech_company', result);
+        return result;
+    }
+    catch {
+        return defaultCompany;
+    }
+}
+export async function saveCompanySettings(settings) {
+    lsSet('aerotech_company', settings);
+    if (!supabase)
+        return;
+    try {
+        if (settings.id) {
+            await supabase
+                .from('company_settings')
+                .update({
+                name: settings.name,
+                icon_url: settings.icon_url,
+                color_primary: settings.color_primary,
+                color_secondary: settings.color_secondary,
+                updated_at: new Date().toISOString(),
+            })
+                .eq('id', settings.id);
+        }
+        else {
+            await supabase
+                .from('company_settings')
+                .insert({
+                name: settings.name,
+                icon_url: settings.icon_url,
+                color_primary: settings.color_primary,
+                color_secondary: settings.color_secondary,
+            });
+        }
+    }
+    catch (e) {
+        console.error('[Supabase] Erro ao salvar company_settings:', e);
+    }
+}
+/** Aplica as cores da empresa no :root como CSS variables */
+export function applyCompanyColors(settings) {
+    const root = document.documentElement;
+    const p = settings.color_primary || '#0a1628';
+    const s = settings.color_secondary || '#c8972a';
+    // Converte hex para derivadas (mid, light, hover)
+    const hexToRgb = (hex) => {
+        const r = parseInt(hex.slice(1, 3), 16);
+        const g = parseInt(hex.slice(3, 5), 16);
+        const b = parseInt(hex.slice(5, 7), 16);
+        return { r, g, b };
+    };
+    const lighten = (hex, pct) => {
+        const { r, g, b } = hexToRgb(hex);
+        const l = (v) => Math.min(255, Math.round(v + (255 - v) * pct));
+        return `#${l(r).toString(16).padStart(2, '0')}${l(g).toString(16).padStart(2, '0')}${l(b).toString(16).padStart(2, '0')}`;
+    };
+    const darken = (hex, pct) => {
+        const { r, g, b } = hexToRgb(hex);
+        const d = (v) => Math.max(0, Math.round(v * (1 - pct)));
+        return `#${d(r).toString(16).padStart(2, '0')}${d(g).toString(16).padStart(2, '0')}${d(b).toString(16).padStart(2, '0')}`;
+    };
+    const hexAlpha = (hex, a) => {
+        const { r, g, b } = hexToRgb(hex);
+        return `rgba(${r},${g},${b},${a})`;
+    };
+    // Cor principal (navy)
+    root.style.setProperty('--navy', p);
+    root.style.setProperty('--navy-mid', lighten(p, 0.08));
+    root.style.setProperty('--navy-light', lighten(p, 0.18));
+    root.style.setProperty('--navy-hover', darken(p, 0.08));
+    // Cor de destaque (gold)
+    root.style.setProperty('--gold', s);
+    root.style.setProperty('--gold-light', lighten(s, 0.15));
+    root.style.setProperty('--gold-pale', lighten(s, 0.65));
+    root.style.setProperty('--gold-dim', hexAlpha(s, 0.15));
+    // Border gold
+    root.style.setProperty('--border', hexAlpha(s, 0.2));
+}
 // ── Mantém getContent/setContent genérico para compatibilidade ───────────────
 export async function getContent(key, fallback) {
     return lsGet(key, fallback);

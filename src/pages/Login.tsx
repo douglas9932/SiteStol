@@ -2,12 +2,14 @@ import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { sendEmail, generatePassword } from '@/lib/emailService';
+import { useCompany } from '@/hooks/useCompany';
 import './Login.css';
 
 type Stage = 'login' | 'forgot' | 'forgot-sending' | 'forgot-sent' | 'forgot-error';
 
 export default function Login() {
   const navigate  = useNavigate();
+  const company   = useCompany();
 
   const [stage,    setStage]    = useState<Stage>('login');
   const [email,    setEmail]    = useState('');
@@ -155,10 +157,13 @@ export default function Login() {
         {/* Logo / marca */}
         <div className="login-card__brand">
           <div className="login-card__logo">
-            <span>AT</span>
+            {company.icon_url
+              ? <img src={company.icon_url} alt={company.name} style={{ width: 28, height: 28, objectFit: 'contain', borderRadius: 4 }} />
+              : <span>{(company.name || 'AT').slice(0, 2).toUpperCase()}</span>
+            }
           </div>
           <div>
-            <p className="login-card__brand-name">AeroTech Brasil</p>
+            <p className="login-card__brand-name">{company.name || 'AeroTech Brasil'}</p>
             <p className="login-card__brand-sub">Painel Administrativo</p>
           </div>
         </div>
@@ -355,7 +360,7 @@ export default function Login() {
         )}
 
         <p className="login-card__footer">
-          © {new Date().getFullYear()} AeroTech Brasil — Acesso restrito
+          © {new Date().getFullYear()} {company.name || 'AeroTech Brasil'} — Acesso restrito
         </p>
       </div>
     </div>

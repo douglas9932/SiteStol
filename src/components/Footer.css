@@ -46,6 +46,14 @@
   flex-shrink: 0;
 }
 
+.footer__brand-icon-img {
+  width: 44px;
+  height: 44px;
+  border-radius: 8px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
 .footer__brand-name {
   font-size: 18px;
   font-weight: 800;

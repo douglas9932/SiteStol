@@ -1,11 +1,12 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
+import { getCompanySettings, saveCompanySettings, CompanySettings, applyCompanyColors } from '@/lib/contentService';
 import { useContent } from '@/hooks/useContent';
 import { CarouselImage, Product, Category, HomeStat, HomeFeature, SobreTimelineItem, ProductAccordionItem, DemoImage } from '@/context/ContentContext';
 import './AdminHome.css';
 
-type Tab = 'home' | 'sobre' | 'produtos' | 'categorias';
+type Tab = 'home' | 'sobre' | 'produtos' | 'categorias' | 'empresa';
 
 /* ─── Toast ── */
 function Toast({ msg }: { msg: string }) {
@@ -484,6 +485,16 @@ export default function AdminHome() {
   const [prodSearch,       setProdSearch]        = useState('');
   const [showAcessoModal,  setShowAcessoModal]   = useState(false);
 
+  // ── Empresa ──
+  const [company,         setCompany]         = useState<CompanySettings>({ name: '', icon_url: '', color_primary: '#0a1628', color_secondary: '#c8972a' });
+  const [companySaving,   setCompanySaving]   = useState(false);
+  const [companyMsg,      setCompanyMsg]      = useState<{type:'success'|'error', text:string} | null>(null);
+  const companyIconRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    getCompanySettings().then(s => { setCompany(s); applyCompanyColors(s); });
+  }, []);
+
   const authData = JSON.parse(sessionStorage.getItem('admin_auth') ?? '{}');
   const [acessoName,     setAcessoName]     = useState(authData.name  ?? '');
   const [acessoEmail,    setAcessoEmail]    = useState(authData.email ?? '');
@@ -676,6 +687,7 @@ export default function AdminHome() {
     { key: 'sobre',      label: 'Sobre',      icon: '📋' },
     { key: 'categorias', label: 'Categorias', icon: '🏷' },
     { key: 'produtos',   label: 'Produtos',   icon: '📦' },
+    { key: 'empresa',    label: 'Empresa',    icon: '🏢' },
   ];
 
   return (
@@ -690,9 +702,12 @@ export default function AdminHome() {
 
           {/* Logo panel */}
           <div className="admin__sidebar-brand">
-            <div className="admin__logo">AT</div>
+            {company.icon_url
+              ? <img src={company.icon_url} alt={company.name} className="admin__logo-img" />
+              : <div className="admin__logo">{(company.name || 'AT').slice(0, 2).toUpperCase()}</div>
+            }
             <div>
-              <p className="admin__title">AeroTech Brasil</p>
+              <p className="admin__title">{company.name || 'Minha Empresa'}</p>
               <p className="admin__subtitle">Painel de Administração</p>
             </div>
           </div>
@@ -1155,6 +1170,210 @@ export default function AdminHome() {
                 onRemove={removeCategory}
                 showToast={showToast}
               />
+            )}
+
+            {/* ═══ EMPRESA ═══ */}
+            {activeTab === 'empresa' && (
+              <div className="admin__section">
+                <h2 className="admin__section-title">🏢 Configurações da Empresa</h2>
+                <p className="admin__section-desc" style={{ marginBottom: '1.5rem' }}>
+                  Essas informações são exibidas na aba do navegador, no navbar e em todo o site.
+                </p>
+
+                <div className="admin__field">
+                  <label className="form-label">Nome da Empresa</label>
+                  <input
+                    className="form-input"
+                    placeholder="Ex: AeroTech Brasil"
+                    value={company.name}
+                    onChange={e => setCompany(prev => ({ ...prev, name: e.target.value }))}
+                  />
+                  <p className="admin__hint">Aparece na aba do navegador, navbar e rodapé.</p>
+                </div>
+
+                <div className="admin__field" style={{ marginTop: '1.25rem' }}>
+                  <label className="form-label">Ícone / Logo</label>
+                  {/* Preview */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 12 }}>
+                    <div style={{
+                      width: 64, height: 64, borderRadius: 12,
+                      background: company.icon_url ? '#f5f5f5' : 'var(--gold)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      border: '1px solid var(--border-gray)', overflow: 'hidden', flexShrink: 0,
+                    }}>
+                      {company.icon_url
+                        ? <img src={company.icon_url} alt="ícone" style={{ width: '100%', height: '100%', objectFit: 'contain', padding: 6 }} />
+                        : <span style={{ fontSize: 22, fontWeight: 900, color: 'var(--navy)' }}>
+                            {(company.name || 'AT').slice(0, 2).toUpperCase()}
+                          </span>
+                      }
+                    </div>
+                    <div>
+                      <input
+                        ref={companyIconRef}
+                        type="file"
+                        accept="image/*"
+                        style={{ display: 'none' }}
+                        onChange={e => {
+                          const file = e.target.files?.[0];
+                          if (!file) return;
+                          const reader = new FileReader();
+                          reader.onload = ev => setCompany(prev => ({ ...prev, icon_url: ev.target?.result as string }));
+                          reader.readAsDataURL(file);
+                          e.target.value = '';
+                        }}
+                      />
+                      <button className="btn admin__upload-btn" onClick={() => companyIconRef.current?.click()}>
+                        📁 Carregar imagem
+                      </button>
+                      {company.icon_url && (
+                        <button className="btn btn-danger" style={{ fontSize: '12px', padding: '6px 12px', marginLeft: 8 }}
+                          onClick={() => setCompany(prev => ({ ...prev, icon_url: '' }))}>
+                          🗑 Remover
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  <input
+                    className="form-input"
+                    placeholder="Ou cole a URL do ícone..."
+                    value={company.icon_url?.startsWith('data:') ? '' : (company.icon_url ?? '')}
+                    onChange={e => setCompany(prev => ({ ...prev, icon_url: e.target.value }))}
+                  />
+                  <p className="admin__hint">Recomendado: PNG ou SVG quadrado (ex: 512×512px). Aparece na aba do navegador e no navbar.</p>
+                </div>
+
+                {/* Cores */}
+                <div className="admin__field" style={{ marginTop: '1.5rem' }}>
+                  <label className="form-label">🎨 Cores da Empresa</label>
+                  <p className="admin__section-desc" style={{ marginBottom: '1rem' }}>
+                    Aplicadas em todo o site: navbar, footer, botões, destaques e painel administrativo.
+                  </p>
+
+                  <div className="admin-color-grid">
+                    {/* Cor Principal */}
+                    <div className="admin-color-item">
+                      <div className="admin-color-preview" style={{ background: company.color_primary || '#0a1628' }} />
+                      <div className="admin-color-info">
+                        <span className="admin-color-label">Cor Principal</span>
+                        <span className="admin-color-desc">Navbar, footer, fundos escuros</span>
+                      </div>
+                      <input
+                        type="color"
+                        className="admin-color-picker"
+                        value={company.color_primary || '#0a1628'}
+                        onChange={e => {
+                          const updated = { ...company, color_primary: e.target.value };
+                          setCompany(updated);
+                          applyCompanyColors(updated);
+                        }}
+                      />
+                    </div>
+
+                    {/* Cor de Destaque */}
+                    <div className="admin-color-item">
+                      <div className="admin-color-preview" style={{ background: company.color_secondary || '#c8972a' }} />
+                      <div className="admin-color-info">
+                        <span className="admin-color-label">Cor de Destaque</span>
+                        <span className="admin-color-desc">Botões, bordas ativas, textos em evidência</span>
+                      </div>
+                      <input
+                        type="color"
+                        className="admin-color-picker"
+                        value={company.color_secondary || '#c8972a'}
+                        onChange={e => {
+                          const updated = { ...company, color_secondary: e.target.value };
+                          setCompany(updated);
+                          applyCompanyColors(updated);
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Preview das cores */}
+                  <div className="admin-color-preview-bar" style={{ marginTop: 16 }}>
+                    <div style={{
+                      background: company.color_primary || '#0a1628',
+                      padding: '14px 20px',
+                      borderRadius: 'var(--radius-md) var(--radius-md) 0 0',
+                      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                    }}>
+                      <span style={{ color: 'white', fontWeight: 700, fontSize: 13 }}>Preview do Navbar</span>
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        {['Sobre', 'Produtos', 'Contatos'].map(t => (
+                          <span key={t} style={{ color: 'rgba(255,255,255,0.6)', fontSize: 12 }}>{t}</span>
+                        ))}
+                      </div>
+                    </div>
+                    <div style={{
+                      background: '#f5f5f5', padding: '12px 20px',
+                      borderRadius: '0 0 var(--radius-md) var(--radius-md)',
+                      display: 'flex', gap: 10, alignItems: 'center',
+                    }}>
+                      <div style={{
+                        background: company.color_secondary || '#c8972a',
+                        color: company.color_primary || '#0a1628',
+                        padding: '6px 16px', borderRadius: 20,
+                        fontSize: 12, fontWeight: 800,
+                      }}>Botão</div>
+                      <span style={{ color: company.color_secondary || '#c8972a', fontSize: 13, fontWeight: 700 }}>
+                        Texto em destaque
+                      </span>
+                    </div>
+                  </div>
+
+                  <button
+                    className="btn btn-outline"
+                    style={{ marginTop: 12, fontSize: 12 }}
+                    onClick={() => {
+                      const reset = { ...company, color_primary: '#0a1628', color_secondary: '#c8972a' };
+                      setCompany(reset);
+                      applyCompanyColors(reset);
+                    }}
+                  >
+                    ↺ Restaurar cores padrão
+                  </button>
+                </div>
+
+                {companyMsg && (
+                  <div style={{
+                    padding: '10px 14px', borderRadius: 8, fontSize: 13, marginTop: 16,
+                    background: companyMsg.type === 'success' ? 'var(--success-bg)' : 'var(--danger-bg)',
+                    color:      companyMsg.type === 'success' ? 'var(--success)'    : 'var(--danger)',
+                    border:     `1px solid ${companyMsg.type === 'success' ? '#86efac' : '#fca5a5'}`,
+                  }}>
+                    {companyMsg.type === 'success' ? '✓ ' : '✕ '}{companyMsg.text}
+                  </div>
+                )}
+
+                <button
+                  className="btn btn-primary"
+                  style={{ marginTop: '1.5rem' }}
+                  disabled={companySaving}
+                  onClick={async () => {
+                    if (!company.name.trim()) {
+                      setCompanyMsg({ type: 'error', text: 'O nome da empresa é obrigatório.' });
+                      return;
+                    }
+                    setCompanySaving(true);
+                    setCompanyMsg(null);
+                    try {
+                      await saveCompanySettings(company);
+                      setCompanyMsg({ type: 'success', text: 'Configurações salvas com sucesso!' });
+                      // Atualiza title imediatamente e recarrega para refletir em toda a UI
+                      document.title = company.name;
+                      setTimeout(() => window.location.reload(), 800);
+                    } catch {
+                      setCompanyMsg({ type: 'error', text: 'Erro ao salvar. Tente novamente.' });
+                    } finally {
+                      setCompanySaving(false);
+                    }
+                  }}
+                >
+                  {companySaving ? 'Salvando...' : '💾 Salvar'}
+                </button>
+              </div>
             )}
 
           </main>

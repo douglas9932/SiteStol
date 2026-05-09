@@ -20,6 +20,14 @@
   flex-shrink: 0;
 }
 
+.admin__logo-img {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
 .admin__title {
   font-size: 16px;
   font-weight: 800;
@@ -1440,4 +1448,65 @@
   color: rgba(255,255,255,0.3);
   font-size: 14px;
   flex-shrink: 0;
+}
+
+/* ── Color pickers ── */
+.admin-color-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.admin-color-item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: var(--white);
+  border: 1px solid var(--border-gray);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+}
+
+.admin-color-preview {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-gray);
+  flex-shrink: 0;
+  transition: background 0.2s;
+}
+
+.admin-color-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.admin-color-label {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--navy);
+}
+
+.admin-color-desc {
+  font-size: 11px;
+  color: var(--gray-400);
+}
+
+.admin-color-picker {
+  width: 40px;
+  height: 40px;
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  padding: 2px;
+  background: transparent;
+  flex-shrink: 0;
+}
+
+.admin-color-preview-bar {
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  border: 1px solid var(--border-gray);
 }

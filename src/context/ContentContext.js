@@ -140,19 +140,19 @@ export function ContentProvider({ children }) {
         setDraft((prev) => ({ ...prev, products: { ...prev.products, products: strip(prev.products.products) } }));
         setPublished((prev) => ({ ...prev, products: { ...prev.products, products: strip(prev.products.products) } }));
     }, [setCategories, setDraft, setPublished]);
-    // Enquanto o Supabase não respondeu, mostra spinner (APÓS todos os hooks)
+    // Enquanto o Supabase não respondeu, mostra spinner
     if (!ready) {
         return (_jsxs("div", { style: {
                 position: 'fixed', inset: 0,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                background: '#0a1628', flexDirection: 'column', gap: 16,
+                background: '#ffffff', flexDirection: 'column', gap: 16,
             }, children: [_jsx("div", { style: {
                         width: 40, height: 40,
-                        border: '3px solid rgba(200,151,42,0.3)',
-                        borderTop: '3px solid #c8972a',
+                        border: '3px solid #e5e7eb',
+                        borderTop: '3px solid #1f2937',
                         borderRadius: '50%',
                         animation: 'spin 0.8s linear infinite',
-                    } }), _jsx("style", { children: `@keyframes spin { to { transform: rotate(360deg); } }` }), _jsx("p", { style: { color: 'rgba(255,255,255,0.5)', fontSize: 13, fontFamily: 'sans-serif' }, children: "Carregando..." })] }));
+                    } }), _jsx("style", { children: `@keyframes spin { to { transform: rotate(360deg); } }` }), _jsx("p", { style: { color: '#9ca3af', fontSize: 13, fontFamily: 'sans-serif' }, children: "Carregando..." })] }));
     }
     return (_jsx(ContentContext.Provider, { value: {
             content,

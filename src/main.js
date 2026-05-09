@@ -3,6 +3,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import { ContentProvider } from './context/ContentContext';
+import CompanyHead from './components/CompanyHead';
 import AppRouter from './router/AppRouter';
 import './styles/index.css';
 class ErrorBoundary extends React.Component {
@@ -26,4 +27,4 @@ class ErrorBoundary extends React.Component {
         return this.props.children;
     }
 }
-ReactDOM.createRoot(document.getElementById('root')).render(_jsx(ErrorBoundary, { children: _jsx(BrowserRouter, { children: _jsx(ContentProvider, { children: _jsx(AppRouter, {}) }) }) }));
+ReactDOM.createRoot(document.getElementById('root')).render(_jsx(ErrorBoundary, { children: _jsx(BrowserRouter, { children: _jsxs(ContentProvider, { children: [_jsx(CompanyHead, {}), _jsx(AppRouter, {})] }) }) }));

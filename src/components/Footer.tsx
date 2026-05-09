@@ -1,3 +1,4 @@
+import { useCompany } from '@/hooks/useCompany';
 import './Footer.css';
 
 const CONTACTS = [
@@ -20,7 +21,10 @@ const CONTACTS = [
 ];
 
 export default function Footer() {
-  const year = new Date().getFullYear();
+  const year    = new Date().getFullYear();
+  const company = useCompany();
+  const name    = company.name || 'AeroTech Brasil';
+  const initials = name.split(' ').slice(0, 2).map((w: string) => w[0]).join('').toUpperCase();
 
   return (
     <footer className="footer">
@@ -30,8 +34,11 @@ export default function Footer() {
           {/* Brand */}
           <div className="footer__brand">
             <div className="footer__brand-logo">
-              <div className="footer__brand-icon">AT</div>
-              <span className="footer__brand-name">AeroTech Brasil</span>
+              {company.icon_url
+                ? <img src={company.icon_url} alt={name} className="footer__brand-icon-img" />
+                : <div className="footer__brand-icon">{initials.slice(0, 2)}</div>
+              }
+              <span className="footer__brand-name">{name}</span>
             </div>
             <p className="footer__brand-desc">
               Referência nacional em aviação agrícola e serviços aeronáuticos
@@ -50,11 +57,11 @@ export default function Footer() {
             <h3 className="footer__contacts-title">Fale Conosco</h3>
             <div className="footer__contacts-grid">
               {CONTACTS.map((c) => {
-                const initials = c.name.split(' ').slice(0, 2).map((w) => w[0]).join('');
+                const ini = c.name.split(' ').slice(0, 2).map((w) => w[0]).join('');
                 return (
                   <div key={c.email} className="footer__contact">
                     <div className="footer__contact-header">
-                      <div className="footer__contact-avatar">{initials}</div>
+                      <div className="footer__contact-avatar">{ini}</div>
                       <div>
                         <p className="footer__contact-name">{c.name}</p>
                         <p className="footer__contact-role">{c.role}</p>
@@ -75,7 +82,7 @@ export default function Footer() {
 
         {/* Bottom */}
         <div className="footer__bottom">
-          <p>© {year} AeroTech Brasil Aviação. Todos os direitos reservados.</p>
+          <p>© {year} {name}. Todos os direitos reservados.</p>
           <p>CNPJ: 12.345.678/0001-90 · Palotina, Paraná — Brasil</p>
         </div>
       </div>

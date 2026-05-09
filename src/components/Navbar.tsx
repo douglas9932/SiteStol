@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
+import { useCompany } from '@/hooks/useCompany';
 import './Navbar.css';
 
 const NAV_ITEMS = [
@@ -14,11 +15,16 @@ const NAV_ITEMS = [
 export default function Navbar() {
   const location = useLocation();
   const [menuOpen, setMenuOpen] = useState(false);
+  const company = useCompany();
 
   const isActive = (path: string) => location.pathname === path;
   const isAdmin = location.pathname.startsWith('/admin');
 
   const closeMenu = () => setMenuOpen(false);
+
+  const companyName = company.name || 'AeroTech';
+  const firstWord   = companyName.split(' ')[0];
+  const rest        = companyName.split(' ').slice(1).join(' ');
 
   return (
     <>
@@ -26,10 +32,13 @@ export default function Navbar() {
         <div className="navbar__inner">
           {/* ── Logo ── */}
           <Link to="/" className="navbar__logo" onClick={closeMenu}>
-            <div className="navbar__logo-icon">AT</div>
+            {company.icon_url
+              ? <img src={company.icon_url} alt={companyName} className="navbar__logo-img" />
+              : <div className="navbar__logo-icon">{companyName.slice(0, 2).toUpperCase()}</div>
+            }
             <div className="navbar__logo-text">
-              <span className="navbar__logo-name">AeroTech</span>
-              <span className="navbar__logo-sub">Brasil Aviação</span>
+              <span className="navbar__logo-name">{firstWord}</span>
+              {rest && <span className="navbar__logo-sub">{rest}</span>}
             </div>
           </Link>
 

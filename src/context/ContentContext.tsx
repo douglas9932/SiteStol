@@ -275,23 +275,23 @@ export function ContentProvider({ children }: { children: ReactNode }) {
     setPublished((prev) => ({ ...prev, products: { ...prev.products, products: strip(prev.products.products) } }));
   }, [setCategories, setDraft, setPublished]);
 
-  // Enquanto o Supabase não respondeu, mostra spinner (APÓS todos os hooks)
+  // Enquanto o Supabase não respondeu, mostra spinner
   if (!ready) {
     return (
       <div style={{
         position: 'fixed', inset: 0,
         display: 'flex', alignItems: 'center', justifyContent: 'center',
-        background: '#0a1628', flexDirection: 'column', gap: 16,
+        background: '#ffffff', flexDirection: 'column', gap: 16,
       }}>
         <div style={{
           width: 40, height: 40,
-          border: '3px solid rgba(200,151,42,0.3)',
-          borderTop: '3px solid #c8972a',
+          border: '3px solid #e5e7eb',
+          borderTop: '3px solid #1f2937',
           borderRadius: '50%',
           animation: 'spin 0.8s linear infinite',
         }} />
         <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-        <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 13, fontFamily: 'sans-serif' }}>
+        <p style={{ color: '#9ca3af', fontSize: 13, fontFamily: 'sans-serif' }}>
           Carregando...
         </p>
       </div>
