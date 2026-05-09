@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
+import { supabase } from '@/lib/supabase';
 import { useContent } from '@/hooks/useContent';
 import { CarouselImage, Product, Category, HomeStat, HomeFeature, SobreTimelineItem, ProductAccordionItem, DemoImage } from '@/context/ContentContext';
 import './AdminHome.css';
@@ -480,7 +481,16 @@ export default function AdminHome() {
   const [toast,        setToast]        = useState('');
   const [showModal,    setShowModal]    = useState(false);
   const [editingProductId, setEditingProductId] = useState<number | null>(null);
-  const [prodSearch,   setProdSearch]   = useState('');
+  const [prodSearch,       setProdSearch]        = useState('');
+  const [showAcessoModal,  setShowAcessoModal]   = useState(false);
+
+  const authData = JSON.parse(sessionStorage.getItem('admin_auth') ?? '{}');
+  const [acessoName,     setAcessoName]     = useState(authData.name  ?? '');
+  const [acessoEmail,    setAcessoEmail]    = useState(authData.email ?? '');
+  const [acessoPassword, setAcessoPassword] = useState('');
+  const [acessoConfirm,  setAcessoConfirm]  = useState('');
+  const [acessoLoading,  setAcessoLoading]  = useState(false);
+  const [acessoMsg,      setAcessoMsg]      = useState<{type:'success'|'error', text:string} | null>(null);
 
   // ── Sobre state ──
   const [sobreHeroTitle,    setSobreHeroTitle]    = useState(content.draft.sobre?.heroTitle    ?? 'Sobre a AeroTech Brasil');
@@ -734,6 +744,21 @@ export default function AdminHome() {
           </nav>
 
           <div className="admin__sidebar-footer">
+            <button
+              className="admin__sidebar-acesso-btn"
+              onClick={() => setShowAcessoModal(true)}
+            >
+              <span className="admin__sidebar-acesso-avatar">
+                {(JSON.parse(sessionStorage.getItem('admin_auth') ?? '{}').name ?? 'A')[0].toUpperCase()}
+              </span>
+              <div className="admin__sidebar-acesso-info">
+                <span className="admin__sidebar-acesso-name">
+                  {JSON.parse(sessionStorage.getItem('admin_auth') ?? '{}').name ?? 'Administrador'}
+                </span>
+                <span className="admin__sidebar-acesso-label">Meu Acesso</span>
+              </div>
+              <span className="admin__sidebar-acesso-icon">⚙</span>
+            </button>
             <a href="/" className="admin__sidebar-site-link" target="_blank" rel="noreferrer">
               🌐 Ver site publicado
             </a>
@@ -1136,6 +1161,108 @@ export default function AdminHome() {
           </div>
         </div>
       </div>
+
+      {/* ── Modal Acesso ── */}
+      {showAcessoModal && (
+        <div className="admin-prod-modal__overlay" onClick={() => { setShowAcessoModal(false); setAcessoMsg(null); }}>
+          <div className="admin-prod-modal" style={{ maxWidth: 480 }} onClick={e => e.stopPropagation()}>
+
+            <div className="admin-prod-modal__header">
+              <h2>⚙ Meu Acesso</h2>
+              <button className="produto-modal__close" style={{ color: 'white', background: 'rgba(255,255,255,0.1)' }}
+                onClick={() => { setShowAcessoModal(false); setAcessoMsg(null); }}>✕</button>
+            </div>
+
+            <div className="admin-prod-modal__body">
+              <div className="admin__field">
+                <label className="form-label">Nome</label>
+                <input className="form-input" value={acessoName} onChange={e => setAcessoName(e.target.value)} placeholder="Seu nome" />
+              </div>
+              <div className="admin__field">
+                <label className="form-label">E-mail</label>
+                <input className="form-input" type="email" value={acessoEmail} onChange={e => setAcessoEmail(e.target.value)} placeholder="seu@email.com" />
+              </div>
+              <div className="admin__field">
+                <label className="form-label">Nova Senha <span style={{ fontWeight: 400, color: 'var(--gray-400)', fontSize: 11 }}>(deixe em branco para manter a atual)</span></label>
+                <input className="form-input" type="password" value={acessoPassword} onChange={e => setAcessoPassword(e.target.value)} placeholder="••••••••" />
+              </div>
+              <div className="admin__field">
+                <label className="form-label">Confirmar Nova Senha</label>
+                <input className="form-input" type="password" value={acessoConfirm} onChange={e => setAcessoConfirm(e.target.value)} placeholder="••••••••" />
+              </div>
+
+              {acessoMsg && (
+                <div style={{
+                  padding: '10px 14px', borderRadius: 8, fontSize: 13,
+                  background: acessoMsg.type === 'success' ? 'var(--success-bg)' : 'var(--danger-bg)',
+                  color:      acessoMsg.type === 'success' ? 'var(--success)'    : 'var(--danger)',
+                  border:     `1px solid ${acessoMsg.type === 'success' ? '#86efac' : '#fca5a5'}`,
+                }}>
+                  {acessoMsg.type === 'success' ? '✓ ' : '✕ '}{acessoMsg.text}
+                </div>
+              )}
+            </div>
+
+            <div className="admin-prod-modal__footer" style={{ gap: 10 }}>
+              <button className="btn btn-outline" onClick={() => { setShowAcessoModal(false); setAcessoMsg(null); }}>
+                Cancelar
+              </button>
+              <button
+                className="btn btn-primary"
+                disabled={acessoLoading}
+                onClick={async () => {
+                  setAcessoMsg(null);
+                  if (!acessoName.trim() || !acessoEmail.trim()) {
+                    setAcessoMsg({ type: 'error', text: 'Nome e e-mail são obrigatórios.' });
+                    return;
+                  }
+                  if (acessoPassword && acessoPassword !== acessoConfirm) {
+                    setAcessoMsg({ type: 'error', text: 'As senhas não coincidem.' });
+                    return;
+                  }
+                  if (acessoPassword && acessoPassword.length < 3) {
+                    setAcessoMsg({ type: 'error', text: 'A senha deve ter ao menos 3 caracteres.' });
+                    return;
+                  }
+                  setAcessoLoading(true);
+                  try {
+                    const updateData: any = {
+                      name:  acessoName.trim(),
+                      email: acessoEmail.trim().toLowerCase(),
+                      updated_at: new Date().toISOString(),
+                    };
+                    if (acessoPassword) updateData.password = acessoPassword;
+
+                    const { error } = await supabase!
+                      .from('admin_users')
+                      .update(updateData)
+                      .eq('id', authData.id);
+
+                    if (error) throw error;
+
+                    // Atualiza sessionStorage
+                    sessionStorage.setItem('admin_auth', JSON.stringify({
+                      ...authData,
+                      name:  acessoName.trim(),
+                      email: acessoEmail.trim().toLowerCase(),
+                    }));
+
+                    setAcessoPassword('');
+                    setAcessoConfirm('');
+                    setAcessoMsg({ type: 'success', text: 'Dados atualizados com sucesso!' });
+                  } catch {
+                    setAcessoMsg({ type: 'error', text: 'Erro ao salvar. Tente novamente.' });
+                  } finally {
+                    setAcessoLoading(false);
+                  }
+                }}
+              >
+                {acessoLoading ? 'Salvando...' : '💾 Salvar alterações'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {toast && <Toast msg={toast} />}
     </div>
