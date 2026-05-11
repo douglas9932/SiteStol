@@ -7,6 +7,7 @@ import Sobre       from '@/pages/Sobre';
 import Produtos    from '@/pages/Produtos';
 import ProdutoDetalhe from '@/pages/ProdutoDetalhe';
 import Noticias    from '@/pages/Noticias';
+import NoticiaDetalhe from '@/pages/NoticiaDetalhe';
 import TabelaCalibracao from '@/pages/TabelaCalibracao';
 import TestesStol  from '@/pages/TestesStol';
 import Contatos    from '@/pages/Contatos';
@@ -44,7 +45,8 @@ export default function AppRouter() {
         <Route path="/sobre"      element={<Layout><Sobre /></Layout>} />
         <Route path="/produtos"      element={<Layout><Produtos /></Layout>} />
         <Route path="/produtos/:id"  element={<Layout><ProdutoDetalhe /></Layout>} />
-        <Route path="/noticias"   element={<Layout><Noticias /></Layout>} />
+        <Route path="/noticias"      element={<Layout><Noticias /></Layout>} />
+        <Route path="/noticias/:id"  element={<Layout><NoticiaDetalhe /></Layout>} />
         <Route path="/calibracao" element={<Layout><TabelaCalibracao /></Layout>} />
         <Route path="/stol"       element={<Layout><TestesStol /></Layout>} />
         <Route path="/contatos"   element={<Layout><Contatos /></Layout>} />

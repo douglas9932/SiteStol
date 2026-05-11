@@ -150,6 +150,7 @@ export async function saveCategories(value) {
 const defaultCompany = {
     name: '', icon_url: '',
     color_primary: '#0a1628', color_secondary: '#c8972a',
+    description: '', cnpj: '',
 };
 export async function getCompanySettings() {
     if (!supabase)
@@ -157,7 +158,7 @@ export async function getCompanySettings() {
     try {
         const { data, error } = await supabase
             .from('company_settings')
-            .select('id, name, icon_url, color_primary, color_secondary')
+            .select('id, name, icon_url, color_primary, color_secondary, description, cnpj')
             .single();
         if (error || !data)
             return defaultCompany;
@@ -167,6 +168,8 @@ export async function getCompanySettings() {
             icon_url: data.icon_url ?? '',
             color_primary: data.color_primary ?? '#0a1628',
             color_secondary: data.color_secondary ?? '#c8972a',
+            description: data.description ?? '',
+            cnpj: data.cnpj ?? '',
         };
         lsSet('aerotech_company', result);
         return result;
@@ -188,6 +191,8 @@ export async function saveCompanySettings(settings) {
                 icon_url: settings.icon_url,
                 color_primary: settings.color_primary,
                 color_secondary: settings.color_secondary,
+                description: settings.description,
+                cnpj: settings.cnpj,
                 updated_at: new Date().toISOString(),
             })
                 .eq('id', settings.id);
@@ -200,6 +205,8 @@ export async function saveCompanySettings(settings) {
                 icon_url: settings.icon_url,
                 color_primary: settings.color_primary,
                 color_secondary: settings.color_secondary,
+                description: settings.description,
+                cnpj: settings.cnpj,
             });
         }
     }
@@ -254,3 +261,198 @@ export async function setContent(key, value) {
     lsSet(key, value);
 }
 export const KEYS = LS;
+export async function getContacts() {
+    if (!supabase)
+        return [];
+    try {
+        const { data, error } = await supabase
+            .from('contacts')
+            .select('*')
+            .order('sort_order', { ascending: true });
+        if (error || !data)
+            return [];
+        return data;
+    }
+    catch {
+        return [];
+    }
+}
+export async function saveContact(contact) {
+    if (!supabase)
+        return null;
+    try {
+        const { data, error } = await supabase
+            .from('contacts')
+            .insert({ ...contact, updated_at: new Date().toISOString() })
+            .select()
+            .single();
+        if (error || !data)
+            return null;
+        return data;
+    }
+    catch {
+        return null;
+    }
+}
+export async function updateContact(id, contact) {
+    if (!supabase)
+        return false;
+    try {
+        const { error } = await supabase
+            .from('contacts')
+            .update({ ...contact, updated_at: new Date().toISOString() })
+            .eq('id', id);
+        return !error;
+    }
+    catch {
+        return false;
+    }
+}
+export async function deleteContact(id) {
+    if (!supabase)
+        return false;
+    try {
+        const { error } = await supabase.from('contacts').delete().eq('id', id);
+        return !error;
+    }
+    catch {
+        return false;
+    }
+}
+/** Faz upload de uma imagem para o Supabase Storage e retorna a URL pública */
+export async function uploadNewsImage(file) {
+    if (!supabase)
+        return null;
+    try {
+        const ext = file.name.split('.').pop() ?? 'jpg';
+        const path = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+        const { error } = await supabase.storage
+            .from('news-images')
+            .upload(path, file, { cacheControl: '3600', upsert: false });
+        if (error) {
+            console.error('[Storage] Upload error:', error);
+            return null;
+        }
+        const { data } = supabase.storage.from('news-images').getPublicUrl(path);
+        return data.publicUrl;
+    }
+    catch (e) {
+        console.error('[Storage] Upload failed:', e);
+        return null;
+    }
+}
+export async function getNews() {
+    if (!supabase)
+        return [];
+    try {
+        const { data, error } = await supabase
+            .from('news')
+            .select('*')
+            .order('sort_order', { ascending: true });
+        if (error || !data)
+            return [];
+        return data;
+    }
+    catch {
+        return [];
+    }
+}
+export async function saveNews(item) {
+    if (!supabase)
+        return null;
+    try {
+        const { data, error } = await supabase
+            .from('news')
+            .insert({ ...item, updated_at: new Date().toISOString() })
+            .select()
+            .single();
+        if (error || !data)
+            return null;
+        return data;
+    }
+    catch {
+        return null;
+    }
+}
+export async function updateNews(id, item) {
+    if (!supabase)
+        return false;
+    try {
+        const { error } = await supabase
+            .from('news')
+            .update({ ...item, updated_at: new Date().toISOString() })
+            .eq('id', id);
+        return !error;
+    }
+    catch {
+        return false;
+    }
+}
+export async function deleteNews(id) {
+    if (!supabase)
+        return false;
+    try {
+        const { error } = await supabase.from('news').delete().eq('id', id);
+        return !error;
+    }
+    catch {
+        return false;
+    }
+}
+export async function getCalibrationTables() {
+    if (!supabase)
+        return [];
+    try {
+        const { data, error } = await supabase
+            .from('calibration_tables')
+            .select('*')
+            .order('sort_order', { ascending: true });
+        if (error || !data)
+            return [];
+        return data;
+    }
+    catch {
+        return [];
+    }
+}
+export async function saveCalibrationTable(item) {
+    if (!supabase)
+        return null;
+    try {
+        const { data, error } = await supabase
+            .from('calibration_tables')
+            .insert({ ...item, updated_at: new Date().toISOString() })
+            .select().single();
+        if (error || !data)
+            return null;
+        return data;
+    }
+    catch {
+        return null;
+    }
+}
+export async function updateCalibrationTable(id, item) {
+    if (!supabase)
+        return false;
+    try {
+        const { error } = await supabase
+            .from('calibration_tables')
+            .update({ ...item, updated_at: new Date().toISOString() })
+            .eq('id', id);
+        return !error;
+    }
+    catch {
+        return false;
+    }
+}
+export async function deleteCalibrationTable(id) {
+    if (!supabase)
+        return false;
+    try {
+        const { error } = await supabase.from('calibration_tables').delete().eq('id', id);
+        return !error;
+    }
+    catch {
+        return false;
+    }
+}

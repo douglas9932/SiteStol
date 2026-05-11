@@ -155,13 +155,16 @@ export interface CompanySettings {
   id?:              string;
   name:             string;
   icon_url:         string;
-  color_primary:    string; // --navy  ex: #0a1628
-  color_secondary:  string; // --gold  ex: #c8972a
+  color_primary:    string;
+  color_secondary:  string;
+  description:      string; // texto do footer
+  cnpj:             string; // CNPJ exibido no rodapé
 }
 
 const defaultCompany: CompanySettings = {
   name: '', icon_url: '',
   color_primary: '#0a1628', color_secondary: '#c8972a',
+  description: '', cnpj: '',
 };
 
 export async function getCompanySettings(): Promise<CompanySettings> {
@@ -169,7 +172,7 @@ export async function getCompanySettings(): Promise<CompanySettings> {
   try {
     const { data, error } = await supabase
       .from('company_settings')
-      .select('id, name, icon_url, color_primary, color_secondary')
+      .select('id, name, icon_url, color_primary, color_secondary, description, cnpj')
       .single();
     if (error || !data) return defaultCompany;
     const result: CompanySettings = {
@@ -178,6 +181,8 @@ export async function getCompanySettings(): Promise<CompanySettings> {
       icon_url:       data.icon_url        ?? '',
       color_primary:  data.color_primary   ?? '#0a1628',
       color_secondary: data.color_secondary ?? '#c8972a',
+      description:    data.description     ?? '',
+      cnpj:           data.cnpj            ?? '',
     };
     lsSet('aerotech_company', result);
     return result;
@@ -196,6 +201,8 @@ export async function saveCompanySettings(settings: CompanySettings): Promise<vo
           icon_url:         settings.icon_url,
           color_primary:    settings.color_primary,
           color_secondary:  settings.color_secondary,
+          description:      settings.description,
+          cnpj:             settings.cnpj,
           updated_at: new Date().toISOString(),
         })
         .eq('id', settings.id);
@@ -207,6 +214,8 @@ export async function saveCompanySettings(settings: CompanySettings): Promise<vo
           icon_url:         settings.icon_url,
           color_primary:    settings.color_primary,
           color_secondary:  settings.color_secondary,
+          description:      settings.description,
+          cnpj:             settings.cnpj,
         });
     }
   } catch (e) { console.error('[Supabase] Erro ao salvar company_settings:', e); }
@@ -264,3 +273,188 @@ export async function setContent(key: string, value: unknown): Promise<void> {
   lsSet(key, value);
 }
 export const KEYS = LS;
+
+// ── CONTACTS ─────────────────────────────────────────────────────────────────
+export interface Contact {
+  id:         string;
+  name:       string;
+  role:       string;
+  email:      string;
+  phone:      string;
+  mobile:     string;
+  address:    string;
+  active:     boolean;
+  sort_order: number;
+}
+
+export async function getContacts(): Promise<Contact[]> {
+  if (!supabase) return [];
+  try {
+    const { data, error } = await supabase
+      .from('contacts')
+      .select('*')
+      .order('sort_order', { ascending: true });
+    if (error || !data) return [];
+    return data as Contact[];
+  } catch { return []; }
+}
+
+export async function saveContact(contact: Omit<Contact, 'id'>): Promise<Contact | null> {
+  if (!supabase) return null;
+  try {
+    const { data, error } = await supabase
+      .from('contacts')
+      .insert({ ...contact, updated_at: new Date().toISOString() })
+      .select()
+      .single();
+    if (error || !data) return null;
+    return data as Contact;
+  } catch { return null; }
+}
+
+export async function updateContact(id: string, contact: Partial<Contact>): Promise<boolean> {
+  if (!supabase) return false;
+  try {
+    const { error } = await supabase
+      .from('contacts')
+      .update({ ...contact, updated_at: new Date().toISOString() })
+      .eq('id', id);
+    return !error;
+  } catch { return false; }
+}
+
+export async function deleteContact(id: string): Promise<boolean> {
+  if (!supabase) return false;
+  try {
+    const { error } = await supabase.from('contacts').delete().eq('id', id);
+    return !error;
+  } catch { return false; }
+}
+
+// ── NEWS ─────────────────────────────────────────────────────────────────────
+export interface NewsItem {
+  id:           string;
+  title:        string;
+  summary:      string;
+  content:      string;
+  image_url:    string;
+  extra_images: string[];
+  author:       string;
+  category:     string;
+  active:       boolean;
+  sort_order:   number;
+  published_at: string;
+}
+
+/** Faz upload de uma imagem para o Supabase Storage e retorna a URL pública */
+export async function uploadNewsImage(file: File): Promise<string | null> {
+  if (!supabase) return null;
+  try {
+    const ext  = file.name.split('.').pop() ?? 'jpg';
+    const path = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+    const { error } = await supabase.storage
+      .from('news-images')
+      .upload(path, file, { cacheControl: '3600', upsert: false });
+    if (error) { console.error('[Storage] Upload error:', error); return null; }
+    const { data } = supabase.storage.from('news-images').getPublicUrl(path);
+    return data.publicUrl;
+  } catch (e) { console.error('[Storage] Upload failed:', e); return null; }
+}
+
+export async function getNews(): Promise<NewsItem[]> {
+  if (!supabase) return [];
+  try {
+    const { data, error } = await supabase
+      .from('news')
+      .select('*')
+      .order('sort_order', { ascending: true });
+    if (error || !data) return [];
+    return data as NewsItem[];
+  } catch { return []; }
+}
+
+export async function saveNews(item: Omit<NewsItem, 'id'>): Promise<NewsItem | null> {
+  if (!supabase) return null;
+  try {
+    const { data, error } = await supabase
+      .from('news')
+      .insert({ ...item, updated_at: new Date().toISOString() })
+      .select()
+      .single();
+    if (error || !data) return null;
+    return data as NewsItem;
+  } catch { return null; }
+}
+
+export async function updateNews(id: string, item: Partial<NewsItem>): Promise<boolean> {
+  if (!supabase) return false;
+  try {
+    const { error } = await supabase
+      .from('news')
+      .update({ ...item, updated_at: new Date().toISOString() })
+      .eq('id', id);
+    return !error;
+  } catch { return false; }
+}
+
+export async function deleteNews(id: string): Promise<boolean> {
+  if (!supabase) return false;
+  try {
+    const { error } = await supabase.from('news').delete().eq('id', id);
+    return !error;
+  } catch { return false; }
+}
+
+// ── CALIBRATION TABLES ────────────────────────────────────────────────────────
+export interface CalibrationTable {
+  id:          string;
+  title:       string;
+  description: string;
+  columns:     string[];
+  rows:        string[][];
+  active:      boolean;
+  sort_order:  number;
+}
+
+export async function getCalibrationTables(): Promise<CalibrationTable[]> {
+  if (!supabase) return [];
+  try {
+    const { data, error } = await supabase
+      .from('calibration_tables')
+      .select('*')
+      .order('sort_order', { ascending: true });
+    if (error || !data) return [];
+    return data as CalibrationTable[];
+  } catch { return []; }
+}
+
+export async function saveCalibrationTable(item: Omit<CalibrationTable,'id'>): Promise<CalibrationTable | null> {
+  if (!supabase) return null;
+  try {
+    const { data, error } = await supabase
+      .from('calibration_tables')
+      .insert({ ...item, updated_at: new Date().toISOString() })
+      .select().single();
+    if (error || !data) return null;
+    return data as CalibrationTable;
+  } catch { return null; }
+}
+
+export async function updateCalibrationTable(id: string, item: Partial<CalibrationTable>): Promise<boolean> {
+  if (!supabase) return false;
+  try {
+    const { error } = await supabase
+      .from('calibration_tables')
+      .update({ ...item, updated_at: new Date().toISOString() })
+      .eq('id', id);
+    return !error;
+  } catch { return false; }
+}
+
+export async function deleteCalibrationTable(id: string): Promise<boolean> {
+  if (!supabase) return false;
+  try {
+    const { error } = await supabase.from('calibration_tables').delete().eq('id', id);
+    return !error;
+  } catch { return false; }
+}

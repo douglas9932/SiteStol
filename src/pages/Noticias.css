@@ -1,6 +1,6 @@
 .noticias__grid {
   display: grid;
-  gap: 20px;
+  gap: 24px;
   max-width: 860px;
   margin: 0 auto;
 }
@@ -8,16 +8,43 @@
 .noticia-card {
   background: var(--white);
   border-radius: var(--radius-lg);
-  padding: 2rem;
   border: 1px solid var(--border);
   border-left: 4px solid var(--gold);
   box-shadow: var(--shadow-sm);
   transition: box-shadow 0.2s, transform 0.2s;
+  overflow: hidden;
+  cursor: pointer;
 }
 
 .noticia-card:hover {
   box-shadow: var(--shadow-lg);
   transform: translateX(4px);
+}
+
+.noticia-card__img-wrap {
+  width: 100%;
+  height: 200px;
+  overflow: hidden;
+}
+
+.noticia-card__img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: transform 0.3s;
+}
+
+.noticia-card:hover .noticia-card__img { transform: scale(1.03); }
+
+.noticia-card__body { padding: 1.75rem; }
+
+.noticia-card__meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
 }
 
 .noticia-card__cat {
@@ -30,7 +57,6 @@
   background: var(--gold-dim);
   padding: 3px 10px;
   border-radius: 20px;
-  margin-bottom: 10px;
 }
 
 .noticia-card__date {
@@ -39,14 +65,13 @@
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  margin-bottom: 10px;
 }
 
 .noticia-card__title {
   font-size: 18px;
   font-weight: 800;
   color: var(--navy);
-  margin-bottom: 12px;
+  margin-bottom: 10px;
   line-height: 1.3;
 }
 
@@ -54,12 +79,27 @@
   font-size: 14px;
   color: var(--gray-600);
   line-height: 1.75;
-  margin-bottom: 16px;
+  margin-bottom: 14px;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .noticia-card__read {
   font-size: 13px;
   font-weight: 700;
   color: var(--gold);
-  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: gap 0.15s;
+}
+
+.noticia-card:hover .noticia-card__read { gap: 8px; }
+
+@media (max-width: 600px) {
+  .noticia-card__img-wrap { height: 160px; }
+  .noticia-card__body { padding: 1.25rem; }
+  .noticia-card__title { font-size: 16px; }
 }

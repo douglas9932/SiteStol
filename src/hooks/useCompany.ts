@@ -4,6 +4,7 @@ import { getCompanySettings, CompanySettings } from '@/lib/contentService';
 const defaultCompany: CompanySettings = {
   name: '', icon_url: '',
   color_primary: '#0a1628', color_secondary: '#c8972a',
+  description: '', cnpj: '',
 };
 
 export function useCompany() {

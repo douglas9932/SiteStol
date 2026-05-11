@@ -1,30 +1,18 @@
+import { useState, useEffect } from 'react';
 import { useCompany } from '@/hooks/useCompany';
+import { getContacts, Contact } from '@/lib/contentService';
 import './Footer.css';
-
-const CONTACTS = [
-  {
-    name: 'João Carlos Mendes',
-    role: 'Diretor Operacional',
-    email: 'joao.mendes@aerotech.com.br',
-    phone: '(45) 3224-1100',
-    mobile: '(45) 99812-3456',
-    address: 'Av. das Indústrias, 1420 — Palotina, PR',
-  },
-  {
-    name: 'Fernanda Oliveira',
-    role: 'Gerente Comercial',
-    email: 'fernanda@aerotech.com.br',
-    phone: '(45) 3224-1101',
-    mobile: '(45) 99900-7788',
-    address: 'Av. das Indústrias, 1420 — Palotina, PR',
-  },
-];
 
 export default function Footer() {
   const year    = new Date().getFullYear();
   const company = useCompany();
   const name    = company.name || 'AeroTech Brasil';
   const initials = name.split(' ').slice(0, 2).map((w: string) => w[0]).join('').toUpperCase();
+  const [contacts, setContacts] = useState<Contact[]>([]);
+
+  useEffect(() => {
+    getContacts().then(data => setContacts(data.filter(c => c.active)));
+  }, []);
 
   return (
     <footer className="footer">
@@ -40,50 +28,45 @@ export default function Footer() {
               }
               <span className="footer__brand-name">{name}</span>
             </div>
-            <p className="footer__brand-desc">
-              Referência nacional em aviação agrícola e serviços aeronáuticos
-              desde 2005. Homologados pela ANAC, comprometidos com segurança
-              e resultados de alto padrão.
-            </p>
-            <div className="footer__badges">
-              <span className="footer__badge">ANAC Homologado</span>
-              <span className="footer__badge">ISO 9001</span>
-              <span className="footer__badge">18+ Anos</span>
-            </div>
+            {company.description && (
+              <p className="footer__brand-desc">{company.description}</p>
+            )}
           </div>
 
           {/* Contacts */}
-          <div className="footer__contacts">
-            <h3 className="footer__contacts-title">Fale Conosco</h3>
-            <div className="footer__contacts-grid">
-              {CONTACTS.map((c) => {
-                const ini = c.name.split(' ').slice(0, 2).map((w) => w[0]).join('');
-                return (
-                  <div key={c.email} className="footer__contact">
-                    <div className="footer__contact-header">
-                      <div className="footer__contact-avatar">{ini}</div>
-                      <div>
-                        <p className="footer__contact-name">{c.name}</p>
-                        <p className="footer__contact-role">{c.role}</p>
+          {contacts.length > 0 && (
+            <div className="footer__contacts">
+              <h3 className="footer__contacts-title">Fale Conosco</h3>
+              <div className="footer__contacts-grid">
+                {contacts.map((c) => {
+                  const ini = c.name.split(' ').slice(0, 2).map((w) => w[0]).join('');
+                  return (
+                    <div key={c.id} className="footer__contact">
+                      <div className="footer__contact-header">
+                        <div className="footer__contact-avatar">{ini}</div>
+                        <div>
+                          <p className="footer__contact-name">{c.name}</p>
+                          {c.role    && <p className="footer__contact-role">{c.role}</p>}
+                        </div>
                       </div>
+                      <ul className="footer__contact-list">
+                        {c.email   && <li><span>✉</span>{c.email}</li>}
+                        {c.phone   && <li><span>☎</span>{c.phone}</li>}
+                        {c.mobile  && <li><span>📱</span>{c.mobile}</li>}
+                        {c.address && <li><span>📍</span>{c.address}</li>}
+                      </ul>
                     </div>
-                    <ul className="footer__contact-list">
-                      <li><span>✉</span>{c.email}</li>
-                      <li><span>☎</span>{c.phone}</li>
-                      <li><span>📱</span>{c.mobile}</li>
-                      <li><span>📍</span>{c.address}</li>
-                    </ul>
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
             </div>
-          </div>
+          )}
         </div>
 
         {/* Bottom */}
         <div className="footer__bottom">
           <p>© {year} {name}. Todos os direitos reservados.</p>
-          <p>CNPJ: 12.345.678/0001-90 · Palotina, Paraná — Brasil</p>
+          {company.cnpj && <p>{company.cnpj}</p>}
         </div>
       </div>
     </footer>

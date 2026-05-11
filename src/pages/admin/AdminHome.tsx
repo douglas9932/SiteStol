@@ -1,12 +1,12 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
-import { getCompanySettings, saveCompanySettings, CompanySettings, applyCompanyColors } from '@/lib/contentService';
+import { getCompanySettings, saveCompanySettings, CompanySettings, applyCompanyColors, getContacts, saveContact, updateContact, deleteContact, Contact, getNews, saveNews, updateNews, deleteNews, NewsItem, uploadNewsImage, getCalibrationTables, saveCalibrationTable, updateCalibrationTable, deleteCalibrationTable, CalibrationTable } from '@/lib/contentService';
 import { useContent } from '@/hooks/useContent';
 import { CarouselImage, Product, Category, HomeStat, HomeFeature, SobreTimelineItem, ProductAccordionItem, DemoImage } from '@/context/ContentContext';
 import './AdminHome.css';
 
-type Tab = 'home' | 'sobre' | 'produtos' | 'categorias' | 'empresa';
+type Tab = 'home' | 'sobre' | 'produtos' | 'categorias' | 'empresa' | 'contatos' | 'noticias' | 'calibracao';
 
 /* ─── Toast ── */
 function Toast({ msg }: { msg: string }) {
@@ -486,10 +486,61 @@ export default function AdminHome() {
   const [showAcessoModal,  setShowAcessoModal]   = useState(false);
 
   // ── Empresa ──
-  const [company,         setCompany]         = useState<CompanySettings>({ name: '', icon_url: '', color_primary: '#0a1628', color_secondary: '#c8972a' });
+  const [company,         setCompany]         = useState<CompanySettings>({ name: '', icon_url: '', color_primary: '#0a1628', color_secondary: '#c8972a', description: '', cnpj: '' });
   const [companySaving,   setCompanySaving]   = useState(false);
   const [companyMsg,      setCompanyMsg]      = useState<{type:'success'|'error', text:string} | null>(null);
   const companyIconRef = useRef<HTMLInputElement>(null);
+
+  // ── Contatos ──
+  const [contacts,       setContacts]       = useState<Contact[]>([]);
+  const [contactsLoading, setContactsLoading] = useState(false);
+  const [editingContact, setEditingContact] = useState<Contact | null>(null);
+  const [showContactModal, setShowContactModal] = useState(false);
+  const [contactForm, setContactForm] = useState<Omit<Contact,'id'>>({
+    name: '', role: '', email: '', phone: '', mobile: '', address: '', active: true, sort_order: 0,
+  });
+  const [contactSaving, setContactSaving] = useState(false);
+  const [contactMsg, setContactMsg] = useState<{type:'success'|'error', text:string}|null>(null);
+
+  useEffect(() => {
+    getContacts().then(setContacts);
+  }, []);
+
+  // ── Notícias ──
+  const defaultNewsForm = (): Omit<NewsItem,'id'> => ({
+    title:'', summary:'', content:'', image_url:'', extra_images: [], author:'',
+    category:'', active:true, sort_order:0,
+    published_at: new Date().toISOString().split('T')[0],
+  });
+  const [news,            setNews]            = useState<NewsItem[]>([]);
+  const [editingNews,     setEditingNews]     = useState<NewsItem | null>(null);
+  const [showNewsModal,   setShowNewsModal]   = useState(false);
+  const [newsForm,        setNewsForm]        = useState<Omit<NewsItem,'id'>>(defaultNewsForm());
+  const [newsSaving,      setNewsSaving]      = useState(false);
+  const [newsMsg,         setNewsMsg]         = useState<{type:'success'|'error', text:string}|null>(null);
+  const [newsImgUploading, setNewsImgUploading] = useState(false);
+  const newsMainImgRef  = useRef<HTMLInputElement>(null);
+  const newsExtraImgRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    getNews().then(setNews);
+  }, []);
+
+  // ── Calibração ──
+  const defaultCalibForm = (): Omit<CalibrationTable,'id'> => ({
+    title: '', description: '', columns: ['Coluna 1', 'Coluna 2', 'Coluna 3'],
+    rows: [['', '', '']], active: true, sort_order: 0,
+  });
+  const [calibTables,       setCalibTables]       = useState<CalibrationTable[]>([]);
+  const [editingCalib,      setEditingCalib]      = useState<CalibrationTable | null>(null);
+  const [showCalibModal,    setShowCalibModal]    = useState(false);
+  const [calibForm,         setCalibForm]         = useState<Omit<CalibrationTable,'id'>>(defaultCalibForm());
+  const [calibSaving,       setCalibSaving]       = useState(false);
+  const [calibMsg,          setCalibMsg]          = useState<{type:'success'|'error', text:string}|null>(null);
+
+  useEffect(() => {
+    getCalibrationTables().then(setCalibTables);
+  }, []);
 
   useEffect(() => {
     getCompanySettings().then(s => { setCompany(s); applyCompanyColors(s); });
@@ -592,11 +643,26 @@ export default function AdminHome() {
   });
 
   const handlePreview = () => {
-    if (activeTab === 'home') updateDraft('home', { carouselImages: homeImages, companyDescription: homeText, carouselTagline, carouselTitle, carouselSubtitle, sobreTitle, stats, featuresTitle, features });
-    else if (activeTab === 'sobre') updateDraft('sobre', sobrePayload());
-    else if (activeTab === 'produtos') updateDraft('products', { products, headline: prodHeadline, subheadline: prodSubline });
-    const page = (activeTab === 'categorias' || activeTab === 'sobre') ? activeTab === 'sobre' ? 'sobre' : 'produtos' : activeTab;
-    window.open(`/preview?page=${page}`, '_blank');
+    // Abas com draft — salva rascunho e abre preview
+    if (activeTab === 'home') {
+      updateDraft('home', { carouselImages: homeImages, companyDescription: homeText, carouselTagline, carouselTitle, carouselSubtitle, sobreTitle, stats, featuresTitle, features });
+      window.open('/preview?page=home', '_blank');
+    } else if (activeTab === 'sobre') {
+      updateDraft('sobre', sobrePayload());
+      window.open('/preview?page=sobre', '_blank');
+    } else if (activeTab === 'produtos') {
+      updateDraft('products', { products, headline: prodHeadline, subheadline: prodSubline });
+      window.open('/preview?page=produtos', '_blank');
+    // Abas sem draft — abre direto a página pública
+    } else if (activeTab === 'calibracao') {
+      window.open('/calibracao', '_blank');
+    } else if (activeTab === 'noticias') {
+      window.open('/noticias', '_blank');
+    } else if (activeTab === 'contatos') {
+      window.open('/contatos', '_blank');
+    } else if (activeTab === 'empresa') {
+      window.open('/', '_blank');
+    }
   };
 
   const confirmPublish = () => {
@@ -683,11 +749,14 @@ export default function AdminHome() {
   const showPublishBtn = activeTab !== 'categorias';
 
   const TABS: { key: Tab; label: string; icon: string }[] = [
-    { key: 'home',       label: 'Home',       icon: '🏠' },
-    { key: 'sobre',      label: 'Sobre',      icon: '📋' },
-    { key: 'categorias', label: 'Categorias', icon: '🏷' },
-    { key: 'produtos',   label: 'Produtos',   icon: '📦' },
-    { key: 'empresa',    label: 'Empresa',    icon: '🏢' },
+    { key: 'home',       label: 'Home',              icon: '🏠' },
+    { key: 'sobre',      label: 'Sobre',             icon: '📋' },
+    { key: 'categorias', label: 'Categorias',        icon: '🏷' },
+    { key: 'produtos',   label: 'Produtos',          icon: '📦' },
+    { key: 'noticias',   label: 'Notícias',          icon: '📰' },
+    { key: 'calibracao', label: 'Calibração',        icon: '📊' },
+    { key: 'contatos',   label: 'Contatos',          icon: '📞' },
+    { key: 'empresa',    label: 'Empresa',           icon: '🏢' },
   ];
 
   return (
@@ -1172,6 +1241,256 @@ export default function AdminHome() {
               />
             )}
 
+            {/* ═══ NOTÍCIAS ═══ */}
+            {activeTab === 'noticias' && (
+              <div className="admin__section">
+                <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'1rem' }}>
+                  <div>
+                    <h2 className="admin__section-title">📰 Notícias</h2>
+                    <p className="admin__section-desc">Notícias e atualizações exibidas no site.</p>
+                  </div>
+                  <button className="btn btn-primary" onClick={() => {
+                    setEditingNews(null);
+                    setNewsForm(defaultNewsForm());
+                    setNewsMsg(null);
+                    setShowNewsModal(true);
+                  }}>+ Nova Notícia</button>
+                </div>
+
+                {news.length === 0 ? (
+                  <div style={{ textAlign:'center', padding:'3rem', color:'var(--gray-400)' }}>
+                    <div style={{ fontSize:48, marginBottom:12 }}>📰</div>
+                    <p>Nenhuma notícia cadastrada ainda.</p>
+                  </div>
+                ) : (
+                  <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
+                    {news.map((n) => (
+                      <div key={n.id} style={{
+                        background: n.active ? 'var(--white)' : 'rgba(0,0,0,0.03)',
+                        border:'1px solid var(--border-gray)',
+                        borderLeft: `4px solid ${n.active ? 'var(--gold)' : 'var(--border-gray)'}`,
+                        borderRadius:'var(--radius-md)', padding:'16px 20px',
+                        display:'flex', alignItems:'flex-start', gap:16,
+                        opacity: n.active ? 1 : 0.6,
+                      }}>
+                        {/* Thumb */}
+                        {n.image_url ? (
+                          <img src={n.image_url} alt={n.title} style={{ width:72, height:52, objectFit:'cover', borderRadius:6, flexShrink:0 }} />
+                        ) : (
+                          <div style={{ width:72, height:52, background:'var(--bg-light)', borderRadius:6, display:'flex', alignItems:'center', justifyContent:'center', fontSize:24, flexShrink:0 }}>📰</div>
+                        )}
+                        {/* Info */}
+                        <div style={{ flex:1, minWidth:0 }}>
+                          <div style={{ display:'flex', alignItems:'center', gap:8, flexWrap:'wrap', marginBottom:4 }}>
+                            {n.category && <span style={{ fontSize:10, fontWeight:800, textTransform:'uppercase', letterSpacing:1, color:'var(--gold)', background:'var(--gold-dim)', padding:'2px 8px', borderRadius:20 }}>{n.category}</span>}
+                            <span style={{ fontSize:10, color:'var(--gray-400)', fontWeight:600 }}>
+                              {new Date(n.published_at).toLocaleDateString('pt-BR',{month:'long',year:'numeric'})}
+                            </span>
+                            <span style={{ fontSize:10, fontWeight:700, padding:'2px 8px', borderRadius:20,
+                              background: n.active ? 'var(--success-bg)' : 'rgba(0,0,0,0.06)',
+                              color: n.active ? 'var(--success)' : 'var(--gray-400)',
+                            }}>{n.active ? 'Ativa' : 'Inativa'}</span>
+                          </div>
+                          <p style={{ fontWeight:700, color:'var(--navy)', fontSize:14, marginBottom:2 }}>{n.title}</p>
+                          {n.summary && <p style={{ fontSize:12, color:'var(--gray-400)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{n.summary}</p>}
+                          {n.author && <p style={{ fontSize:11, color:'var(--gray-400)', marginTop:2, fontStyle:'italic' }}>Por {n.author}</p>}
+                        </div>
+                        {/* Actions */}
+                        <div style={{ display:'flex', gap:8, flexShrink:0, flexWrap:'wrap', justifyContent:'flex-end' }}>
+                          <button className="btn btn-outline" style={{ fontSize:12, padding:'6px 12px' }}
+                            onClick={() => {
+                              setEditingNews(n);
+                              setNewsForm({ title:n.title, summary:n.summary, content:n.content, image_url:n.image_url, extra_images: Array.isArray(n.extra_images) ? n.extra_images : [], author:n.author, category:n.category, active:n.active, sort_order:n.sort_order, published_at:n.published_at.split('T')[0] });
+                              setNewsMsg(null);
+                              setShowNewsModal(true);
+                            }}>✏ Editar</button>
+                          <button className="btn" style={{ fontSize:12, padding:'6px 12px', background: n.active ? 'rgba(220,38,38,0.08)' : 'rgba(22,163,74,0.08)', color: n.active ? 'var(--danger)' : 'var(--success)', border:'none' }}
+                            onClick={async () => {
+                              await updateNews(n.id, { active: !n.active });
+                              setNews(prev => prev.map(x => x.id === n.id ? {...x, active: !n.active} : x));
+                              showToast(n.active ? 'Notícia inativada' : 'Notícia ativada');
+                            }}>{n.active ? '🚫 Inativar' : '✓ Ativar'}</button>
+                          <button className="btn btn-danger" style={{ fontSize:12, padding:'6px 12px' }}
+                            onClick={async () => {
+                              if (!confirm(`Excluir "${n.title}"?`)) return;
+                              await deleteNews(n.id);
+                              setNews(prev => prev.filter(x => x.id !== n.id));
+                              showToast('Notícia excluída');
+                            }}>🗑</button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ═══ CALIBRAÇÃO ═══ */}
+            {activeTab === 'calibracao' && (
+              <div className="admin__section">
+                <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'1rem' }}>
+                  <div>
+                    <h2 className="admin__section-title">📊 Tabelas de Calibração</h2>
+                    <p className="admin__section-desc">Tabelas técnicas exibidas na página de Calibração.</p>
+                  </div>
+                  <button className="btn btn-primary" onClick={() => {
+                    setEditingCalib(null);
+                    setCalibForm(defaultCalibForm());
+                    setCalibMsg(null);
+                    setShowCalibModal(true);
+                  }}>+ Nova Tabela</button>
+                </div>
+
+                {calibTables.length === 0 ? (
+                  <div style={{ textAlign:'center', padding:'3rem', color:'var(--gray-400)' }}>
+                    <div style={{ fontSize:48, marginBottom:12 }}>📊</div>
+                    <p>Nenhuma tabela cadastrada ainda.</p>
+                  </div>
+                ) : (
+                  <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
+                    {calibTables.map((t) => (
+                      <div key={t.id} style={{
+                        background: t.active ? 'var(--white)' : 'rgba(0,0,0,0.03)',
+                        border:'1px solid var(--border-gray)',
+                        borderLeft:`4px solid ${t.active ? 'var(--gold)' : 'var(--border-gray)'}`,
+                        borderRadius:'var(--radius-md)', padding:'16px 20px',
+                        display:'flex', alignItems:'center', gap:16,
+                        opacity: t.active ? 1 : 0.6,
+                      }}>
+                        <div style={{ flex:1, minWidth:0 }}>
+                          <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:4 }}>
+                            <span style={{ fontWeight:700, color:'var(--navy)', fontSize:14 }}>{t.title}</span>
+                            <span style={{ fontSize:10, fontWeight:700, padding:'2px 8px', borderRadius:20,
+                              background: t.active ? 'var(--success-bg)' : 'rgba(0,0,0,0.06)',
+                              color: t.active ? 'var(--success)' : 'var(--gray-400)',
+                            }}>{t.active ? 'Ativa' : 'Inativa'}</span>
+                          </div>
+                          {t.description && <p style={{ fontSize:12, color:'var(--gray-400)', marginBottom:4 }}>{t.description}</p>}
+                          <p style={{ fontSize:11, color:'var(--gray-400)' }}>
+                            {t.columns.length} colunas · {t.rows.length} linhas
+                          </p>
+                        </div>
+                        <div style={{ display:'flex', gap:8, flexShrink:0 }}>
+                          <button className="btn btn-outline" style={{ fontSize:12, padding:'6px 12px' }}
+                            onClick={() => {
+                              setEditingCalib(t);
+                              setCalibForm({ title:t.title, description:t.description, columns:[...t.columns], rows:t.rows.map(r=>[...r]), active:t.active, sort_order:t.sort_order });
+                              setCalibMsg(null);
+                              setShowCalibModal(true);
+                            }}>✏ Editar</button>
+                          <button className="btn" style={{ fontSize:12, padding:'6px 12px', background: t.active ? 'rgba(220,38,38,0.08)' : 'rgba(22,163,74,0.08)', color: t.active ? 'var(--danger)' : 'var(--success)', border:'none' }}
+                            onClick={async () => {
+                              await updateCalibrationTable(t.id, { active: !t.active });
+                              setCalibTables(prev => prev.map(x => x.id === t.id ? {...x, active: !t.active} : x));
+                              showToast(t.active ? 'Tabela inativada' : 'Tabela ativada');
+                            }}>{t.active ? '🚫 Inativar' : '✓ Ativar'}</button>
+                          <button className="btn btn-danger" style={{ fontSize:12, padding:'6px 12px' }}
+                            onClick={async () => {
+                              if (!confirm(`Excluir "${t.title}"?`)) return;
+                              await deleteCalibrationTable(t.id);
+                              setCalibTables(prev => prev.filter(x => x.id !== t.id));
+                              showToast('Tabela excluída');
+                            }}>🗑</button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ═══ CONTATOS ═══ */}
+            {activeTab === 'contatos' && (
+              <div className="admin__section">
+                <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'1rem' }}>
+                  <div>
+                    <h2 className="admin__section-title">📞 Contatos</h2>
+                    <p className="admin__section-desc">Contatos exibidos no rodapé do site.</p>
+                  </div>
+                  <button className="btn btn-primary" onClick={() => {
+                    setEditingContact(null);
+                    setContactForm({ name:'', role:'', email:'', phone:'', mobile:'', address:'', active:true, sort_order: contacts.length });
+                    setContactMsg(null);
+                    setShowContactModal(true);
+                  }}>+ Novo Contato</button>
+                </div>
+
+                {contacts.length === 0 ? (
+                  <div style={{ textAlign:'center', padding:'3rem', color:'var(--gray-400)' }}>
+                    <div style={{ fontSize:48, marginBottom:12 }}>📞</div>
+                    <p>Nenhum contato cadastrado ainda.</p>
+                    <p style={{ fontSize:13 }}>Clique em "+ Novo Contato" para adicionar.</p>
+                  </div>
+                ) : (
+                  <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
+                    {contacts.map((c) => (
+                      <div key={c.id} style={{
+                        background: c.active ? 'var(--white)' : 'rgba(0,0,0,0.03)',
+                        border: `1px solid ${c.active ? 'var(--border-gray)' : 'var(--border-gray)'}`,
+                        borderRadius: 'var(--radius-md)', padding:'16px 20px',
+                        display:'flex', alignItems:'center', gap:16,
+                        opacity: c.active ? 1 : 0.6,
+                      }}>
+                        {/* Avatar */}
+                        <div style={{
+                          width:48, height:48, borderRadius:'50%',
+                          background:'var(--navy)', color:'white',
+                          display:'flex', alignItems:'center', justifyContent:'center',
+                          fontWeight:800, fontSize:16, flexShrink:0,
+                        }}>
+                          {c.name.split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase()}
+                        </div>
+                        {/* Info */}
+                        <div style={{ flex:1, minWidth:0 }}>
+                          <div style={{ display:'flex', alignItems:'center', gap:8, flexWrap:'wrap' }}>
+                            <span style={{ fontWeight:700, color:'var(--navy)', fontSize:14 }}>{c.name}</span>
+                            {c.role && <span style={{ fontSize:12, color:'var(--gray-400)' }}>{c.role}</span>}
+                            <span style={{
+                              fontSize:10, fontWeight:700, padding:'2px 8px', borderRadius:20,
+                              background: c.active ? 'var(--success-bg)' : 'rgba(0,0,0,0.06)',
+                              color: c.active ? 'var(--success)' : 'var(--gray-400)',
+                            }}>{c.active ? 'Ativo' : 'Inativo'}</span>
+                          </div>
+                          <div style={{ display:'flex', gap:16, flexWrap:'wrap', marginTop:4 }}>
+                            {c.email   && <span style={{ fontSize:12, color:'var(--gray-400)' }}>✉ {c.email}</span>}
+                            {c.phone   && <span style={{ fontSize:12, color:'var(--gray-400)' }}>☎ {c.phone}</span>}
+                            {c.mobile  && <span style={{ fontSize:12, color:'var(--gray-400)' }}>📱 {c.mobile}</span>}
+                            {c.address && <span style={{ fontSize:12, color:'var(--gray-400)' }}>📍 {c.address}</span>}
+                          </div>
+                        </div>
+                        {/* Actions */}
+                        <div style={{ display:'flex', gap:8, flexShrink:0 }}>
+                          <button className="btn btn-outline" style={{ fontSize:12, padding:'6px 12px' }}
+                            onClick={() => {
+                              setEditingContact(c);
+                              setContactForm({ name:c.name, role:c.role, email:c.email, phone:c.phone, mobile:c.mobile, address:c.address, active:c.active, sort_order:c.sort_order });
+                              setContactMsg(null);
+                              setShowContactModal(true);
+                            }}>✏ Editar</button>
+                          <button
+                            className="btn"
+                            style={{ fontSize:12, padding:'6px 12px', background: c.active ? 'rgba(220,38,38,0.08)' : 'rgba(22,163,74,0.08)', color: c.active ? 'var(--danger)' : 'var(--success)', border:'none' }}
+                            onClick={async () => {
+                              await updateContact(c.id, { active: !c.active });
+                              setContacts(prev => prev.map(x => x.id === c.id ? {...x, active: !c.active} : x));
+                              showToast(c.active ? 'Contato inativado' : 'Contato ativado');
+                            }}
+                          >{c.active ? '🚫 Inativar' : '✓ Ativar'}</button>
+                          <button className="btn btn-danger" style={{ fontSize:12, padding:'6px 12px' }}
+                            onClick={async () => {
+                              if (!confirm(`Excluir "${c.name}"?`)) return;
+                              await deleteContact(c.id);
+                              setContacts(prev => prev.filter(x => x.id !== c.id));
+                              showToast('Contato excluído');
+                            }}>🗑</button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* ═══ EMPRESA ═══ */}
             {activeTab === 'empresa' && (
               <div className="admin__section">
@@ -1189,6 +1508,30 @@ export default function AdminHome() {
                     onChange={e => setCompany(prev => ({ ...prev, name: e.target.value }))}
                   />
                   <p className="admin__hint">Aparece na aba do navegador, navbar e rodapé.</p>
+                </div>
+
+                <div className="admin__field" style={{ marginTop: '1rem' }}>
+                  <label className="form-label">Descrição (Rodapé)</label>
+                  <textarea
+                    className="form-input"
+                    rows={3}
+                    placeholder="Ex: Referência nacional em aviação agrícola desde 2005..."
+                    value={company.description ?? ''}
+                    onChange={e => setCompany(prev => ({ ...prev, description: e.target.value }))}
+                    style={{ resize: 'vertical' }}
+                  />
+                  <p className="admin__hint">Texto exibido abaixo do logo no rodapé do site.</p>
+                </div>
+
+                <div className="admin__field" style={{ marginTop: '1rem' }}>
+                  <label className="form-label">CNPJ</label>
+                  <input
+                    className="form-input"
+                    placeholder="Ex: CNPJ: 12.345.678/0001-90 · Palotina, Paraná — Brasil"
+                    value={company.cnpj ?? ''}
+                    onChange={e => setCompany(prev => ({ ...prev, cnpj: e.target.value }))}
+                  />
+                  <p className="admin__hint">Exibido no rodapé inferior do site. Deixe em branco para ocultar.</p>
                 </div>
 
                 <div className="admin__field" style={{ marginTop: '1.25rem' }}>
@@ -1380,6 +1723,486 @@ export default function AdminHome() {
           </div>
         </div>
       </div>
+
+      {/* ── Modal Calibração ── */}
+      {showCalibModal && (() => {
+        const cols = calibForm.columns;
+        const rows = calibForm.rows;
+
+        const setCol = (ci: number, val: string) =>
+          setCalibForm(p => { const c=[...p.columns]; c[ci]=val; return {...p,columns:c}; });
+
+        const addCol = () =>
+          setCalibForm(p => ({
+            ...p,
+            columns: [...p.columns, `Coluna ${p.columns.length+1}`],
+            rows: p.rows.map(r => [...r, '']),
+          }));
+
+        const removeCol = (ci: number) =>
+          setCalibForm(p => ({
+            ...p,
+            columns: p.columns.filter((_,i)=>i!==ci),
+            rows: p.rows.map(r => r.filter((_,i)=>i!==ci)),
+          }));
+
+        const addRow = () =>
+          setCalibForm(p => ({ ...p, rows: [...p.rows, Array(p.columns.length).fill('')] }));
+
+        const removeRow = (ri: number) =>
+          setCalibForm(p => ({ ...p, rows: p.rows.filter((_,i)=>i!==ri) }));
+
+        const setCell = (ri: number, ci: number, val: string) =>
+          setCalibForm(p => {
+            const r = p.rows.map(row=>[...row]);
+            r[ri][ci] = val;
+            return {...p, rows:r};
+          });
+
+        return (
+          <div className="admin-prod-modal__overlay" onClick={() => setShowCalibModal(false)}>
+            <div className="admin-prod-modal" style={{ maxWidth:780, width:'95vw' }} onClick={e => e.stopPropagation()}>
+              <div className="admin-prod-modal__header">
+                <h2>{editingCalib ? '✏ Editar Tabela' : '+ Nova Tabela de Calibração'}</h2>
+                <button className="produto-modal__close" style={{ color:'white', background:'rgba(255,255,255,0.1)' }}
+                  onClick={() => setShowCalibModal(false)}>✕</button>
+              </div>
+
+              <div className="admin-prod-modal__body" style={{ maxHeight:'70vh', overflowY:'auto' }}>
+                {/* Título e descrição */}
+                <div style={{ display:'grid', gridTemplateColumns:'1fr', gap:12, marginBottom:20 }}>
+                  <div className="admin__field">
+                    <label className="form-label">Título <span style={{color:'var(--danger)'}}>*</span></label>
+                    <input className="form-input" placeholder="Ex: Tabela de Calibração de Altímetros"
+                      value={calibForm.title} onChange={e => setCalibForm(p=>({...p,title:e.target.value}))} />
+                  </div>
+                  <div className="admin__field">
+                    <label className="form-label">Descrição</label>
+                    <textarea className="form-input" rows={2} placeholder="Descrição opcional da tabela..."
+                      value={calibForm.description} onChange={e => setCalibForm(p=>({...p,description:e.target.value}))}
+                      style={{ resize:'vertical' }} />
+                  </div>
+                  <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+                    <input type="checkbox" id="calib-active" checked={calibForm.active}
+                      onChange={e => setCalibForm(p=>({...p,active:e.target.checked}))}
+                      style={{ width:18, height:18, cursor:'pointer' }} />
+                    <label htmlFor="calib-active" style={{ fontSize:13, fontWeight:600, cursor:'pointer', color:'var(--navy)' }}>
+                      Tabela ativa (visível no site)
+                    </label>
+                    <input className="form-input" type="number" min={0} value={calibForm.sort_order}
+                      onChange={e => setCalibForm(p=>({...p,sort_order:Number(e.target.value)}))}
+                      style={{ width:80, marginLeft:'auto' }} title="Ordem de exibição" />
+                    <span style={{ fontSize:12, color:'var(--gray-400)', whiteSpace:'nowrap' }}>Ordem</span>
+                  </div>
+                </div>
+
+                {/* Editor de colunas */}
+                <div style={{ marginBottom:12 }}>
+                  <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:8 }}>
+                    <label className="form-label" style={{ marginBottom:0 }}>Colunas ({cols.length})</label>
+                    <button className="btn btn-outline" style={{ fontSize:11, padding:'4px 10px' }} onClick={addCol}>
+                      + Coluna
+                    </button>
+                  </div>
+                  <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
+                    {cols.map((col, ci) => (
+                      <div key={ci} style={{ display:'flex', alignItems:'center', gap:4, background:'var(--bg-light)', borderRadius:6, padding:'4px 6px', border:'1px solid var(--border-gray)' }}>
+                        <input
+                          style={{ border:'none', background:'transparent', fontSize:12, fontWeight:700, color:'var(--navy)', width: Math.max(60, col.length * 8), outline:'none', fontFamily:'inherit' }}
+                          value={col} onChange={e => setCol(ci, e.target.value)} />
+                        {cols.length > 1 && (
+                          <button onClick={() => removeCol(ci)}
+                            style={{ background:'none', border:'none', color:'var(--danger)', cursor:'pointer', fontSize:12, lineHeight:1, padding:0 }}>✕</button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Editor de linhas */}
+                <div>
+                  <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:8 }}>
+                    <label className="form-label" style={{ marginBottom:0 }}>Linhas ({rows.length})</label>
+                    <button className="btn btn-outline" style={{ fontSize:11, padding:'4px 10px' }} onClick={addRow}>
+                      + Linha
+                    </button>
+                  </div>
+
+                  <div style={{ overflowX:'auto' }}>
+                    <table style={{ width:'100%', borderCollapse:'collapse', minWidth: cols.length * 120 }}>
+                      <thead>
+                        <tr style={{ background:'var(--navy)' }}>
+                          {cols.map((col, ci) => (
+                            <th key={ci} style={{ padding:'8px 10px', color:'white', fontSize:11, fontWeight:700, textAlign:'left', whiteSpace:'nowrap' }}>
+                              {col}
+                            </th>
+                          ))}
+                          <th style={{ width:32 }} />
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {rows.map((row, ri) => (
+                          <tr key={ri} style={{ background: ri%2===0 ? 'white' : 'var(--bg-light)' }}>
+                            {cols.map((_, ci) => (
+                              <td key={ci} style={{ padding:'4px 6px', borderBottom:'1px solid var(--border-gray)' }}>
+                                <input
+                                  className="form-input"
+                                  style={{ padding:'6px 8px', fontSize:12, minWidth:80 }}
+                                  value={row[ci] ?? ''}
+                                  onChange={e => setCell(ri, ci, e.target.value)}
+                                  placeholder="—"
+                                />
+                              </td>
+                            ))}
+                            <td style={{ padding:'4px 6px', textAlign:'center' }}>
+                              {rows.length > 1 && (
+                                <button onClick={() => removeRow(ri)}
+                                  style={{ background:'none', border:'none', color:'var(--danger)', cursor:'pointer', fontSize:14 }}>🗑</button>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {calibMsg && (
+                  <div style={{
+                    padding:'10px 14px', borderRadius:8, fontSize:13, marginTop:12,
+                    background: calibMsg.type==='success' ? 'var(--success-bg)' : 'var(--danger-bg)',
+                    color:      calibMsg.type==='success' ? 'var(--success)'    : 'var(--danger)',
+                    border:     `1px solid ${calibMsg.type==='success' ? '#86efac' : '#fca5a5'}`,
+                  }}>
+                    {calibMsg.type==='success' ? '✓ ' : '✕ '}{calibMsg.text}
+                  </div>
+                )}
+              </div>
+
+              <div className="admin-prod-modal__footer" style={{ gap:10 }}>
+                <button className="btn btn-outline" onClick={() => setShowCalibModal(false)}>Cancelar</button>
+                <button className="btn btn-primary" disabled={calibSaving}
+                  onClick={async () => {
+                    if (!calibForm.title.trim()) { setCalibMsg({ type:'error', text:'O título é obrigatório.' }); return; }
+                    if (calibForm.columns.length === 0) { setCalibMsg({ type:'error', text:'Adicione ao menos uma coluna.' }); return; }
+                    setCalibSaving(true); setCalibMsg(null);
+                    try {
+                      if (editingCalib) {
+                        const ok = await updateCalibrationTable(editingCalib.id, calibForm);
+                        if (ok) {
+                          setCalibTables(prev => prev.map(x => x.id === editingCalib.id ? {...x,...calibForm} : x));
+                          setCalibMsg({ type:'success', text:'Tabela atualizada!' });
+                          setTimeout(() => setShowCalibModal(false), 800);
+                        } else { setCalibMsg({ type:'error', text:'Erro ao atualizar.' }); }
+                      } else {
+                        const created = await saveCalibrationTable(calibForm);
+                        if (created) {
+                          setCalibTables(prev => [...prev, created]);
+                          setCalibMsg({ type:'success', text:'Tabela criada!' });
+                          setTimeout(() => setShowCalibModal(false), 800);
+                        } else { setCalibMsg({ type:'error', text:'Erro ao criar tabela.' }); }
+                      }
+                    } catch { setCalibMsg({ type:'error', text:'Erro inesperado.' }); }
+                    finally { setCalibSaving(false); }
+                  }}>
+                  {calibSaving ? 'Salvando...' : '💾 Salvar'}
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* ── Modal Notícia ── */}
+      {showNewsModal && (
+        <div className="admin-prod-modal__overlay" onClick={() => setShowNewsModal(false)}>
+          <div className="admin-prod-modal" style={{ maxWidth:580 }} onClick={e => e.stopPropagation()}>
+            <div className="admin-prod-modal__header">
+              <h2>{editingNews ? '✏ Editar Notícia' : '+ Nova Notícia'}</h2>
+              <button className="produto-modal__close" style={{ color:'white', background:'rgba(255,255,255,0.1)' }}
+                onClick={() => setShowNewsModal(false)}>✕</button>
+            </div>
+            <div className="admin-prod-modal__body">
+              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
+                <div className="admin__field" style={{ gridColumn:'1/-1' }}>
+                  <label className="form-label">Título <span style={{color:'var(--danger)'}}>*</span></label>
+                  <input className="form-input" placeholder="Título da notícia" value={newsForm.title}
+                    onChange={e => setNewsForm(p=>({...p, title:e.target.value}))} />
+                </div>
+                <div className="admin__field">
+                  <label className="form-label">Categoria</label>
+                  <input className="form-input" placeholder="Ex: Evento, Certificação" value={newsForm.category}
+                    onChange={e => setNewsForm(p=>({...p, category:e.target.value}))} />
+                </div>
+                <div className="admin__field">
+                  <label className="form-label">Autor</label>
+                  <input className="form-input" placeholder="Ex: Redação" value={newsForm.author}
+                    onChange={e => setNewsForm(p=>({...p, author:e.target.value}))} />
+                </div>
+                <div className="admin__field">
+                  <label className="form-label">Data de Publicação</label>
+                  <input className="form-input" type="date" value={newsForm.published_at?.split('T')[0] ?? ''}
+                    onChange={e => setNewsForm(p=>({...p, published_at:e.target.value}))} />
+                </div>
+                <div className="admin__field">
+                  <label className="form-label">Ordem de Exibição</label>
+                  <input className="form-input" type="number" min={0} value={newsForm.sort_order}
+                    onChange={e => setNewsForm(p=>({...p, sort_order:Number(e.target.value)}))} />
+                </div>
+                <div className="admin__field" style={{ gridColumn:'1/-1' }}>
+                  <label className="form-label">Imagem de Capa</label>
+
+                  {/* Preview capa */}
+                  {newsForm.image_url && (
+                    <div style={{ position:'relative', marginBottom:8 }}>
+                      <img src={newsForm.image_url} alt="capa" style={{ width:'100%', height:140, objectFit:'cover', borderRadius:8, display:'block' }} />
+                      <button onClick={() => setNewsForm(p=>({...p, image_url:''}))}
+                        style={{ position:'absolute', top:6, right:6, background:'rgba(220,38,38,0.85)', color:'white', border:'none', borderRadius:'50%', width:24, height:24, cursor:'pointer', fontSize:14, lineHeight:'24px', textAlign:'center' }}>✕</button>
+                    </div>
+                  )}
+
+                  {/* Botões upload / URL */}
+                  <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
+                    <input ref={newsMainImgRef} type="file" accept="image/*" style={{ display:'none' }}
+                      onChange={async e => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+                        setNewsImgUploading(true);
+                        const url = await uploadNewsImage(file);
+                        if (url) setNewsForm(p=>({...p, image_url:url}));
+                        else setNewsMsg({ type:'error', text:'Erro ao fazer upload da imagem.' });
+                        setNewsImgUploading(false);
+                        e.target.value='';
+                      }} />
+                    <button className="btn admin__upload-btn" disabled={newsImgUploading}
+                      onClick={() => newsMainImgRef.current?.click()}>
+                      {newsImgUploading ? '⏳ Enviando...' : '📁 Carregar do dispositivo'}
+                    </button>
+                  </div>
+                  <input className="form-input" style={{ marginTop:8 }} placeholder="Ou cole a URL da imagem..."
+                    value={newsForm.image_url?.startsWith('http') ? newsForm.image_url : ''}
+                    onChange={e => setNewsForm(p=>({...p, image_url:e.target.value}))} />
+                </div>
+
+                {/* Imagens extras */}
+                <div className="admin__field" style={{ gridColumn:'1/-1' }}>
+                  <label className="form-label">Imagens Extras</label>
+                  <p className="admin__hint" style={{ marginBottom:8 }}>Galeria adicional exibida na notícia.</p>
+
+                  {/* Grid de extras */}
+                  {(newsForm.extra_images ?? []).length > 0 && (
+                    <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(80px,1fr))', gap:8, marginBottom:8 }}>
+                      {(newsForm.extra_images ?? []).map((url, idx) => (
+                        <div key={idx} style={{ position:'relative' }}>
+                          <img src={url} alt="" style={{ width:'100%', height:64, objectFit:'cover', borderRadius:6, display:'block' }} />
+                          <button onClick={() => setNewsForm(p=>({...p, extra_images: (p.extra_images??[]).filter((_,i)=>i!==idx)}))}
+                            style={{ position:'absolute', top:2, right:2, background:'rgba(220,38,38,0.85)', color:'white', border:'none', borderRadius:'50%', width:18, height:18, cursor:'pointer', fontSize:11, lineHeight:'18px', textAlign:'center' }}>✕</button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  <input ref={newsExtraImgRef} type="file" accept="image/*" multiple style={{ display:'none' }}
+                    onChange={async e => {
+                      const files = Array.from(e.target.files ?? []);
+                      if (!files.length) return;
+                      setNewsImgUploading(true);
+                      const urls = await Promise.all(files.map(f => uploadNewsImage(f)));
+                      const valid = urls.filter(Boolean) as string[];
+                      setNewsForm(p=>({...p, extra_images:[...(p.extra_images??[]),...valid]}));
+                      if (valid.length < files.length) setNewsMsg({ type:'error', text:'Alguns uploads falharam.' });
+                      setNewsImgUploading(false);
+                      e.target.value='';
+                    }} />
+                  <button className="btn admin__upload-btn" disabled={newsImgUploading}
+                    onClick={() => newsExtraImgRef.current?.click()}>
+                    {newsImgUploading ? '⏳ Enviando...' : '📁 Adicionar imagens extras'}
+                  </button>
+                </div>
+                <div className="admin__field" style={{ gridColumn:'1/-1' }}>
+                  <label className="form-label">Resumo</label>
+                  <textarea className="form-input" rows={2} placeholder="Breve resumo da notícia..." value={newsForm.summary}
+                    onChange={e => setNewsForm(p=>({...p, summary:e.target.value}))} style={{ resize:'vertical' }} />
+                </div>
+                <div className="admin__field" style={{ gridColumn:'1/-1' }}>
+                  <label className="form-label">Conteúdo Completo</label>
+                  <textarea className="form-input" rows={6} placeholder="Conteúdo completo da notícia..." value={newsForm.content}
+                    onChange={e => setNewsForm(p=>({...p, content:e.target.value}))} style={{ resize:'vertical' }} />
+                  <p className="admin__hint">Exibido ao clicar em "Leia mais".</p>
+                </div>
+                <div className="admin__field" style={{ gridColumn:'1/-1', display:'flex', alignItems:'center', gap:10 }}>
+                  <input type="checkbox" id="news-active" checked={newsForm.active}
+                    onChange={e => setNewsForm(p=>({...p, active:e.target.checked}))}
+                    style={{ width:18, height:18, cursor:'pointer' }} />
+                  <label htmlFor="news-active" style={{ fontSize:13, fontWeight:600, cursor:'pointer', color:'var(--navy)' }}>
+                    Notícia ativa (visível no site)
+                  </label>
+                </div>
+              </div>
+
+              {newsMsg && (
+                <div style={{
+                  padding:'10px 14px', borderRadius:8, fontSize:13, marginTop:12,
+                  background: newsMsg.type==='success' ? 'var(--success-bg)' : 'var(--danger-bg)',
+                  color:      newsMsg.type==='success' ? 'var(--success)'    : 'var(--danger)',
+                  border:     `1px solid ${newsMsg.type==='success' ? '#86efac' : '#fca5a5'}`,
+                }}>
+                  {newsMsg.type==='success' ? '✓ ' : '✕ '}{newsMsg.text}
+                </div>
+              )}
+            </div>
+            <div className="admin-prod-modal__footer" style={{ gap:10 }}>
+              <button className="btn btn-outline" onClick={() => setShowNewsModal(false)}>Cancelar</button>
+              <button className="btn btn-primary" disabled={newsSaving}
+                onClick={async () => {
+                  if (!newsForm.title.trim()) {
+                    setNewsMsg({ type:'error', text:'O título é obrigatório.' });
+                    return;
+                  }
+                  setNewsSaving(true);
+                  setNewsMsg(null);
+                  try {
+                    if (editingNews) {
+                      const ok = await updateNews(editingNews.id, newsForm);
+                      if (ok) {
+                        setNews(prev => prev.map(x => x.id === editingNews.id ? {...x,...newsForm} : x));
+                        setNewsMsg({ type:'success', text:'Notícia atualizada!' });
+                        setTimeout(() => setShowNewsModal(false), 800);
+                      } else {
+                        setNewsMsg({ type:'error', text:'Erro ao atualizar.' });
+                      }
+                    } else {
+                      const created = await saveNews(newsForm);
+                      if (created) {
+                        setNews(prev => [...prev, created]);
+                        setNewsMsg({ type:'success', text:'Notícia criada!' });
+                        setTimeout(() => setShowNewsModal(false), 800);
+                      } else {
+                        setNewsMsg({ type:'error', text:'Erro ao criar notícia.' });
+                      }
+                    }
+                  } catch {
+                    setNewsMsg({ type:'error', text:'Erro inesperado.' });
+                  } finally {
+                    setNewsSaving(false);
+                  }
+                }}>
+                {newsSaving ? 'Salvando...' : '💾 Salvar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Modal Contato ── */}
+      {showContactModal && (
+        <div className="admin-prod-modal__overlay" onClick={() => setShowContactModal(false)}>
+          <div className="admin-prod-modal" style={{ maxWidth: 520 }} onClick={e => e.stopPropagation()}>
+            <div className="admin-prod-modal__header">
+              <h2>{editingContact ? '✏ Editar Contato' : '+ Novo Contato'}</h2>
+              <button className="produto-modal__close" style={{ color:'white', background:'rgba(255,255,255,0.1)' }}
+                onClick={() => setShowContactModal(false)}>✕</button>
+            </div>
+            <div className="admin-prod-modal__body">
+              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
+                <div className="admin__field" style={{ gridColumn:'1/-1' }}>
+                  <label className="form-label">Nome <span style={{color:'var(--danger)'}}>*</span></label>
+                  <input className="form-input" placeholder="Nome completo" value={contactForm.name}
+                    onChange={e => setContactForm(p=>({...p, name:e.target.value}))} />
+                </div>
+                <div className="admin__field" style={{ gridColumn:'1/-1' }}>
+                  <label className="form-label">Cargo / Função</label>
+                  <input className="form-input" placeholder="Ex: Diretor Operacional" value={contactForm.role}
+                    onChange={e => setContactForm(p=>({...p, role:e.target.value}))} />
+                </div>
+                <div className="admin__field">
+                  <label className="form-label">E-mail</label>
+                  <input className="form-input" type="email" placeholder="email@empresa.com" value={contactForm.email}
+                    onChange={e => setContactForm(p=>({...p, email:e.target.value}))} />
+                </div>
+                <div className="admin__field">
+                  <label className="form-label">Telefone</label>
+                  <input className="form-input" placeholder="(00) 0000-0000" value={contactForm.phone}
+                    onChange={e => setContactForm(p=>({...p, phone:e.target.value}))} />
+                </div>
+                <div className="admin__field">
+                  <label className="form-label">Celular</label>
+                  <input className="form-input" placeholder="(00) 00000-0000" value={contactForm.mobile}
+                    onChange={e => setContactForm(p=>({...p, mobile:e.target.value}))} />
+                </div>
+                <div className="admin__field">
+                  <label className="form-label">Ordem de exibição</label>
+                  <input className="form-input" type="number" min={0} value={contactForm.sort_order}
+                    onChange={e => setContactForm(p=>({...p, sort_order:Number(e.target.value)}))} />
+                </div>
+                <div className="admin__field" style={{ gridColumn:'1/-1' }}>
+                  <label className="form-label">Endereço</label>
+                  <input className="form-input" placeholder="Rua, número — Cidade, UF" value={contactForm.address}
+                    onChange={e => setContactForm(p=>({...p, address:e.target.value}))} />
+                </div>
+                <div className="admin__field" style={{ gridColumn:'1/-1', display:'flex', alignItems:'center', gap:10 }}>
+                  <input type="checkbox" id="contact-active" checked={contactForm.active}
+                    onChange={e => setContactForm(p=>({...p, active:e.target.checked}))}
+                    style={{ width:18, height:18, cursor:'pointer' }} />
+                  <label htmlFor="contact-active" style={{ fontSize:13, fontWeight:600, cursor:'pointer', color:'var(--navy)' }}>
+                    Contato ativo (visível no site)
+                  </label>
+                </div>
+              </div>
+
+              {contactMsg && (
+                <div style={{
+                  padding:'10px 14px', borderRadius:8, fontSize:13, marginTop:12,
+                  background: contactMsg.type==='success' ? 'var(--success-bg)' : 'var(--danger-bg)',
+                  color:      contactMsg.type==='success' ? 'var(--success)'    : 'var(--danger)',
+                  border:     `1px solid ${contactMsg.type==='success' ? '#86efac' : '#fca5a5'}`,
+                }}>
+                  {contactMsg.type==='success' ? '✓ ' : '✕ '}{contactMsg.text}
+                </div>
+              )}
+            </div>
+            <div className="admin-prod-modal__footer" style={{ gap:10 }}>
+              <button className="btn btn-outline" onClick={() => setShowContactModal(false)}>Cancelar</button>
+              <button className="btn btn-primary" disabled={contactSaving}
+                onClick={async () => {
+                  if (!contactForm.name.trim()) {
+                    setContactMsg({ type:'error', text:'O nome é obrigatório.' });
+                    return;
+                  }
+                  setContactSaving(true);
+                  setContactMsg(null);
+                  try {
+                    if (editingContact) {
+                      const ok = await updateContact(editingContact.id, contactForm);
+                      if (ok) {
+                        setContacts(prev => prev.map(x => x.id === editingContact.id ? {...x,...contactForm} : x));
+                        setContactMsg({ type:'success', text:'Contato atualizado!' });
+                        setTimeout(() => setShowContactModal(false), 800);
+                      } else {
+                        setContactMsg({ type:'error', text:'Erro ao atualizar.' });
+                      }
+                    } else {
+                      const created = await saveContact(contactForm);
+                      if (created) {
+                        setContacts(prev => [...prev, created]);
+                        setContactMsg({ type:'success', text:'Contato criado!' });
+                        setTimeout(() => setShowContactModal(false), 800);
+                      } else {
+                        setContactMsg({ type:'error', text:'Erro ao criar contato.' });
+                      }
+                    }
+                  } catch {
+                    setContactMsg({ type:'error', text:'Erro inesperado.' });
+                  } finally {
+                    setContactSaving(false);
+                  }
+                }}>
+                {contactSaving ? 'Salvando...' : '💾 Salvar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Modal Acesso ── */}
       {showAcessoModal && (
