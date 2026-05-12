@@ -44,6 +44,10 @@ export default function TabelaCalibracao() {
                       <table className="calib__table">
                         <thead>
                           <tr>
+                            {/* Cabeçalho da coluna de títulos das linhas */}
+                            {(t.row_headers ?? []).some(h => h) && (
+                              <th className="calib__table-row-header-col"></th>
+                            )}
                             {t.columns.map((col, ci) => (
                               <th key={ci}>{col}</th>
                             ))}
@@ -52,6 +56,12 @@ export default function TabelaCalibracao() {
                         <tbody>
                           {t.rows.map((row, ri) => (
                             <tr key={ri}>
+                              {/* Título da linha */}
+                              {(t.row_headers ?? []).some(h => h) && (
+                                <td className="calib__table-row-header">
+                                  {(t.row_headers ?? [])[ri] ?? ''}
+                                </td>
+                              )}
                               {t.columns.map((_, ci) => (
                                 <td key={ci}>{row[ci] ?? ''}</td>
                               ))}

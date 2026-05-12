@@ -84,3 +84,18 @@
   .calib__table thead th,
   .calib__table tbody td { padding: 8px 12px; }
 }
+
+/* Coluna de títulos das linhas */
+.calib__table-row-header-col {
+  background: var(--navy) !important;
+  border-right: 2px solid rgba(200,151,42,0.4);
+  width: 140px;
+}
+
+.calib__table-row-header {
+  font-weight: 700;
+  color: var(--navy);
+  background: rgba(200,151,42,0.08) !important;
+  border-right: 2px solid var(--border);
+  white-space: nowrap;
+}

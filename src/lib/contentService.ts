@@ -411,6 +411,7 @@ export interface CalibrationTable {
   title:       string;
   description: string;
   columns:     string[];
+  row_headers: string[];
   rows:        string[][];
   active:      boolean;
   sort_order:  number;

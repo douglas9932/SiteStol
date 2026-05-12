@@ -258,6 +258,11 @@ a {
 
 /* ─── PREVIEW BANNER ────────────────────────────────────────────────────────── */
 .preview-banner {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 9998;
   background: #ea580c;
   color: white;
   text-align: center;
@@ -270,6 +275,7 @@ a {
   justify-content: center;
   gap: 16px;
   flex-wrap: wrap;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.3);
 }
 
 .preview-banner button {
@@ -280,6 +286,17 @@ a {
   border-radius: 5px;
   font-size: 12px;
   font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.preview-banner button:hover {
+  background: rgba(0,0,0,0.4);
+}
+
+/* Empurra o conteúdo abaixo do banner fixo */
+.preview-banner + * {
+  margin-top: 44px;
 }
 
 /* ─── FORM ELEMENTS ─────────────────────────────────────────────────────────── */
@@ -337,4 +354,4 @@ a {
 
 @media (max-width: 480px) {
   .container { padding: 0 1rem; }
-}
+} 

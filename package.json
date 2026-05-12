@@ -9,7 +9,8 @@
     "build": "node ./node_modules/typescript/bin/tsc && node ./node_modules/vite/bin/vite.js build",
     "preview": "vite preview",
     "predeploy": "npm run build",
-    "deploy": "gh-pages -d build"
+    "deploy": "gh-pages -d build",
+    "dev1": "powershell -Command \"Remove-Item -Recurse -Force node_modules\\.vite -ErrorAction SilentlyContinue; Remove-Item -Recurse -Force dist -ErrorAction SilentlyContinue; npm run build; npm run preview\""
   },
   "dependencies": {
     "@emailjs/browser": "^4.4.1",

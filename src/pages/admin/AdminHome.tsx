@@ -487,23 +487,26 @@ export default function AdminHome() {
 
   // ── Empresa ──
   const [company,         setCompany]         = useState<CompanySettings>({ name: '', icon_url: '', color_primary: '#0a1628', color_secondary: '#c8972a', description: '', cnpj: '' });
+  const [companyDraft,    setCompanyDraft]    = useState<CompanySettings>({ name: '', icon_url: '', color_primary: '#0a1628', color_secondary: '#c8972a', description: '', cnpj: '' });
+  const [companyHasDraft, setCompanyHasDraft] = useState(false);
   const [companySaving,   setCompanySaving]   = useState(false);
   const [companyMsg,      setCompanyMsg]      = useState<{type:'success'|'error', text:string} | null>(null);
   const companyIconRef = useRef<HTMLInputElement>(null);
 
   // ── Contatos ──
-  const [contacts,       setContacts]       = useState<Contact[]>([]);
-  const [contactsLoading, setContactsLoading] = useState(false);
-  const [editingContact, setEditingContact] = useState<Contact | null>(null);
+  const [contacts,         setContacts]         = useState<Contact[]>([]);
+  const [contactsDraft,    setContactsDraft]    = useState<Contact[]>([]);
+  const [contactsHasDraft, setContactsHasDraft] = useState(false);
+  const [editingContact,   setEditingContact]   = useState<Contact | null>(null);
   const [showContactModal, setShowContactModal] = useState(false);
-  const [contactForm, setContactForm] = useState<Omit<Contact,'id'>>({
+  const [contactForm,      setContactForm]      = useState<Omit<Contact,'id'>>({
     name: '', role: '', email: '', phone: '', mobile: '', address: '', active: true, sort_order: 0,
   });
-  const [contactSaving, setContactSaving] = useState(false);
-  const [contactMsg, setContactMsg] = useState<{type:'success'|'error', text:string}|null>(null);
+  const [contactSaving,    setContactSaving]    = useState(false);
+  const [contactMsg,       setContactMsg]       = useState<{type:'success'|'error', text:string}|null>(null);
 
   useEffect(() => {
-    getContacts().then(setContacts);
+    getContacts().then(data => { setContacts(data); setContactsDraft(data); });
   }, []);
 
   // ── Notícias ──
@@ -512,26 +515,31 @@ export default function AdminHome() {
     category:'', active:true, sort_order:0,
     published_at: new Date().toISOString().split('T')[0],
   });
-  const [news,            setNews]            = useState<NewsItem[]>([]);
-  const [editingNews,     setEditingNews]     = useState<NewsItem | null>(null);
-  const [showNewsModal,   setShowNewsModal]   = useState(false);
-  const [newsForm,        setNewsForm]        = useState<Omit<NewsItem,'id'>>(defaultNewsForm());
-  const [newsSaving,      setNewsSaving]      = useState(false);
-  const [newsMsg,         setNewsMsg]         = useState<{type:'success'|'error', text:string}|null>(null);
+  const [news,             setNews]            = useState<NewsItem[]>([]);
+  const [newsDraft,        setNewsDraft]       = useState<NewsItem[]>([]); // rascunho local
+  const [newsHasDraft,     setNewsHasDraft]    = useState(false);          // dirty flag
+  const [editingNews,      setEditingNews]     = useState<NewsItem | null>(null);
+  const [showNewsModal,    setShowNewsModal]   = useState(false);
+  const [newsForm,         setNewsForm]        = useState<Omit<NewsItem,'id'>>(defaultNewsForm());
+  const [newsPublishing,   setNewsPublishing]  = useState(false);
+  const [newsMsg,          setNewsMsg]         = useState<{type:'success'|'error', text:string}|null>(null);
   const [newsImgUploading, setNewsImgUploading] = useState(false);
   const newsMainImgRef  = useRef<HTMLInputElement>(null);
   const newsExtraImgRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    getNews().then(setNews);
+    getNews().then(data => { setNews(data); setNewsDraft(data); });
   }, []);
 
   // ── Calibração ──
   const defaultCalibForm = (): Omit<CalibrationTable,'id'> => ({
     title: '', description: '', columns: ['Coluna 1', 'Coluna 2', 'Coluna 3'],
+    row_headers: [''],
     rows: [['', '', '']], active: true, sort_order: 0,
   });
   const [calibTables,       setCalibTables]       = useState<CalibrationTable[]>([]);
+  const [calibDraft,        setCalibDraft]        = useState<CalibrationTable[]>([]);
+  const [calibHasDraft,     setCalibHasDraft]     = useState(false);
   const [editingCalib,      setEditingCalib]      = useState<CalibrationTable | null>(null);
   const [showCalibModal,    setShowCalibModal]    = useState(false);
   const [calibForm,         setCalibForm]         = useState<Omit<CalibrationTable,'id'>>(defaultCalibForm());
@@ -539,11 +547,11 @@ export default function AdminHome() {
   const [calibMsg,          setCalibMsg]          = useState<{type:'success'|'error', text:string}|null>(null);
 
   useEffect(() => {
-    getCalibrationTables().then(setCalibTables);
+    getCalibrationTables().then(data => { setCalibTables(data); setCalibDraft(data); });
   }, []);
 
   useEffect(() => {
-    getCompanySettings().then(s => { setCompany(s); applyCompanyColors(s); });
+    getCompanySettings().then(s => { setCompany(s); setCompanyDraft(s); applyCompanyColors(s); });
   }, []);
 
   const authData = JSON.parse(sessionStorage.getItem('admin_auth') ?? '{}');
@@ -634,6 +642,10 @@ export default function AdminHome() {
       const pub = content.published.products;
       return JSON.stringify(products) !== JSON.stringify(pub.products) || prodHeadline !== pub.headline || prodSubline !== pub.subheadline;
     }
+    if (activeTab === 'noticias') return newsHasDraft;
+    if (activeTab === 'calibracao') return calibHasDraft;
+    if (activeTab === 'contatos') return contactsHasDraft;
+    if (activeTab === 'empresa') return companyHasDraft;
     return false;
   })();
 
@@ -655,25 +667,142 @@ export default function AdminHome() {
       window.open('/preview?page=produtos', '_blank');
     // Abas sem draft — abre direto a página pública
     } else if (activeTab === 'calibracao') {
-      window.open('/calibracao', '_blank');
+      sessionStorage.setItem('calib_preview_draft', JSON.stringify(calibDraft));
+      window.open('/preview?page=calibracao', '_blank');
     } else if (activeTab === 'noticias') {
-      window.open('/noticias', '_blank');
+      sessionStorage.setItem('news_preview_draft', JSON.stringify(newsDraft));
+      window.open('/preview?page=noticias', '_blank');
     } else if (activeTab === 'contatos') {
-      window.open('/contatos', '_blank');
+      sessionStorage.setItem('contacts_preview_draft', JSON.stringify(contactsDraft));
+      window.open('/preview?page=contatos', '_blank');
     } else if (activeTab === 'empresa') {
-      window.open('/', '_blank');
+      sessionStorage.setItem('empresa_preview_draft', JSON.stringify(companyDraft));
+      window.open('/preview?page=empresa', '_blank');
     }
   };
 
-  const confirmPublish = () => {
+  const confirmPublish = async () => {
     setShowModal(false);
     if (activeTab === 'home') publishDirect('home', { carouselImages: homeImages, companyDescription: homeText, carouselTagline, carouselTitle, carouselSubtitle, sobreTitle, stats, featuresTitle, features });
     else if (activeTab === 'sobre') publishDirect('sobre', sobrePayload());
     else if (activeTab === 'produtos') publishDirect('products', { products, headline: prodHeadline, subheadline: prodSubline });
+    else if (activeTab === 'noticias') {
+      setNewsPublishing(true);
+      try {
+        // Sincroniza o draft com o banco:
+        // 1. Itens com ID real → update
+        // 2. Itens com ID temporário (temp_) → insert
+        // 3. Itens que sumiram do draft → delete
+        const toDelete = news.filter(n => !newsDraft.find(d => d.id === n.id));
+        const toInsert = newsDraft.filter(d => d.id.startsWith('temp_'));
+        const toUpdate = newsDraft.filter(d => !d.id.startsWith('temp_'));
+
+        await Promise.all([
+          ...toDelete.map(n => deleteNews(n.id)),
+          ...toUpdate.map(n => updateNews(n.id, n)),
+        ]);
+        const inserted = await Promise.all(
+          toInsert.map(d => {
+            const { id: _id, ...form } = d;
+            return saveNews(form);
+          })
+        );
+
+        // Reconstrói o draft com IDs reais
+        const finalDraft = [
+          ...toUpdate,
+          ...(inserted.filter(Boolean) as NewsItem[]),
+        ].sort((a,b) => a.sort_order - b.sort_order);
+
+        setNews(finalDraft);
+        setNewsDraft(finalDraft);
+        setNewsHasDraft(false);
+        showToast('✅ Notícias publicadas!');
+      } catch {
+        showToast('❌ Erro ao publicar notícias.');
+      } finally {
+        setNewsPublishing(false);
+      }
+      return;
+    } else if (activeTab === 'calibracao') {
+      try {
+        const toDelete = calibTables.filter(t => !calibDraft.find(d => d.id === t.id));
+        const toInsert = calibDraft.filter(d => d.id.startsWith('temp_'));
+        const toUpdate = calibDraft.filter(d => !d.id.startsWith('temp_'));
+        await Promise.all([
+          ...toDelete.map(t => deleteCalibrationTable(t.id)),
+          ...toUpdate.map(t => updateCalibrationTable(t.id, t)),
+        ]);
+        const inserted = await Promise.all(
+          toInsert.map(d => { const { id: _id, ...form } = d; return saveCalibrationTable(form); })
+        );
+        const final = [...toUpdate, ...(inserted.filter(Boolean) as CalibrationTable[])].sort((a,b) => a.sort_order - b.sort_order);
+        setCalibTables(final);
+        setCalibDraft(final);
+        setCalibHasDraft(false);
+        showToast('✅ Tabelas de calibração publicadas!');
+      } catch { showToast('❌ Erro ao publicar.'); }
+      return;
+    } else if (activeTab === 'contatos') {
+      try {
+        const toDelete = contacts.filter(c => !contactsDraft.find(d => d.id === c.id));
+        const toInsert = contactsDraft.filter(d => d.id.startsWith('temp_'));
+        const toUpdate = contactsDraft.filter(d => !d.id.startsWith('temp_'));
+        await Promise.all([
+          ...toDelete.map(c => deleteContact(c.id)),
+          ...toUpdate.map(c => updateContact(c.id, c)),
+        ]);
+        const inserted = await Promise.all(
+          toInsert.map(d => { const { id: _id, ...form } = d; return saveContact(form); })
+        );
+        const final = [...toUpdate, ...(inserted.filter(Boolean) as Contact[])].sort((a,b) => a.sort_order - b.sort_order);
+        setContacts(final);
+        setContactsDraft(final);
+        setContactsHasDraft(false);
+        showToast('✅ Contatos publicados!');
+      } catch { showToast('❌ Erro ao publicar contatos.'); }
+      return;
+    } else if (activeTab === 'empresa') {
+      try {
+        await saveCompanySettings(companyDraft);
+        setCompany(companyDraft);
+        setCompanyHasDraft(false);
+        applyCompanyColors(companyDraft);
+        document.title = companyDraft.name;
+        showToast('✅ Configurações da empresa publicadas!');
+        setTimeout(() => window.location.reload(), 800);
+      } catch { showToast('❌ Erro ao publicar.'); }
+      return;
+    }
     showToast('✅ Publicado! O site já exibe o novo conteúdo.');
   };
 
   const handleDiscard = () => {
+    if (activeTab === 'noticias') {
+      setNewsDraft(structuredClone(news));
+      setNewsHasDraft(false);
+      showToast('Alterações descartadas.');
+      return;
+    }
+    if (activeTab === 'calibracao') {
+      setCalibDraft(structuredClone(calibTables));
+      setCalibHasDraft(false);
+      showToast('Alterações descartadas.');
+      return;
+    }
+    if (activeTab === 'contatos') {
+      setContactsDraft(structuredClone(contacts));
+      setContactsHasDraft(false);
+      showToast('Alterações descartadas.');
+      return;
+    }
+    if (activeTab === 'empresa') {
+      setCompanyDraft(structuredClone(company));
+      setCompanyHasDraft(false);
+      applyCompanyColors(company);
+      showToast('Alterações descartadas.');
+      return;
+    }
     if (activeTab === 'home') {
       const pub = content.published.home;
       setHomeImages(structuredClone(pub.carouselImages));
@@ -1247,7 +1376,7 @@ export default function AdminHome() {
                 <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'1rem' }}>
                   <div>
                     <h2 className="admin__section-title">📰 Notícias</h2>
-                    <p className="admin__section-desc">Notícias e atualizações exibidas no site.</p>
+                    <p className="admin__section-desc">Edite as notícias e clique em <strong>Publicar</strong> para atualizar o site.</p>
                   </div>
                   <button className="btn btn-primary" onClick={() => {
                     setEditingNews(null);
@@ -1257,14 +1386,24 @@ export default function AdminHome() {
                   }}>+ Nova Notícia</button>
                 </div>
 
-                {news.length === 0 ? (
+                {newsHasDraft && (
+                  <div style={{
+                    background:'rgba(234,88,12,0.1)', border:'1px solid rgba(234,88,12,0.3)',
+                    borderRadius:'var(--radius-md)', padding:'10px 14px', marginBottom:12,
+                    fontSize:13, color:'#ea580c', fontWeight:600,
+                  }}>
+                    ⚠ Há alterações não publicadas. Clique em <strong>Publicar</strong> para salvar no site.
+                  </div>
+                )}
+
+                {newsDraft.length === 0 ? (
                   <div style={{ textAlign:'center', padding:'3rem', color:'var(--gray-400)' }}>
                     <div style={{ fontSize:48, marginBottom:12 }}>📰</div>
                     <p>Nenhuma notícia cadastrada ainda.</p>
                   </div>
                 ) : (
                   <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
-                    {news.map((n) => (
+                    {newsDraft.map((n) => (
                       <div key={n.id} style={{
                         background: n.active ? 'var(--white)' : 'rgba(0,0,0,0.03)',
                         border:'1px solid var(--border-gray)',
@@ -1273,13 +1412,11 @@ export default function AdminHome() {
                         display:'flex', alignItems:'flex-start', gap:16,
                         opacity: n.active ? 1 : 0.6,
                       }}>
-                        {/* Thumb */}
                         {n.image_url ? (
                           <img src={n.image_url} alt={n.title} style={{ width:72, height:52, objectFit:'cover', borderRadius:6, flexShrink:0 }} />
                         ) : (
                           <div style={{ width:72, height:52, background:'var(--bg-light)', borderRadius:6, display:'flex', alignItems:'center', justifyContent:'center', fontSize:24, flexShrink:0 }}>📰</div>
                         )}
-                        {/* Info */}
                         <div style={{ flex:1, minWidth:0 }}>
                           <div style={{ display:'flex', alignItems:'center', gap:8, flexWrap:'wrap', marginBottom:4 }}>
                             {n.category && <span style={{ fontSize:10, fontWeight:800, textTransform:'uppercase', letterSpacing:1, color:'var(--gold)', background:'var(--gold-dim)', padding:'2px 8px', borderRadius:20 }}>{n.category}</span>}
@@ -1295,7 +1432,6 @@ export default function AdminHome() {
                           {n.summary && <p style={{ fontSize:12, color:'var(--gray-400)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{n.summary}</p>}
                           {n.author && <p style={{ fontSize:11, color:'var(--gray-400)', marginTop:2, fontStyle:'italic' }}>Por {n.author}</p>}
                         </div>
-                        {/* Actions */}
                         <div style={{ display:'flex', gap:8, flexShrink:0, flexWrap:'wrap', justifyContent:'flex-end' }}>
                           <button className="btn btn-outline" style={{ fontSize:12, padding:'6px 12px' }}
                             onClick={() => {
@@ -1305,17 +1441,15 @@ export default function AdminHome() {
                               setShowNewsModal(true);
                             }}>✏ Editar</button>
                           <button className="btn" style={{ fontSize:12, padding:'6px 12px', background: n.active ? 'rgba(220,38,38,0.08)' : 'rgba(22,163,74,0.08)', color: n.active ? 'var(--danger)' : 'var(--success)', border:'none' }}
-                            onClick={async () => {
-                              await updateNews(n.id, { active: !n.active });
-                              setNews(prev => prev.map(x => x.id === n.id ? {...x, active: !n.active} : x));
-                              showToast(n.active ? 'Notícia inativada' : 'Notícia ativada');
+                            onClick={() => {
+                              setNewsDraft(prev => prev.map(x => x.id === n.id ? {...x, active: !n.active} : x));
+                              setNewsHasDraft(true);
                             }}>{n.active ? '🚫 Inativar' : '✓ Ativar'}</button>
                           <button className="btn btn-danger" style={{ fontSize:12, padding:'6px 12px' }}
-                            onClick={async () => {
+                            onClick={() => {
                               if (!confirm(`Excluir "${n.title}"?`)) return;
-                              await deleteNews(n.id);
-                              setNews(prev => prev.filter(x => x.id !== n.id));
-                              showToast('Notícia excluída');
+                              setNewsDraft(prev => prev.filter(x => x.id !== n.id));
+                              setNewsHasDraft(true);
                             }}>🗑</button>
                         </div>
                       </div>
@@ -1331,7 +1465,7 @@ export default function AdminHome() {
                 <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'1rem' }}>
                   <div>
                     <h2 className="admin__section-title">📊 Tabelas de Calibração</h2>
-                    <p className="admin__section-desc">Tabelas técnicas exibidas na página de Calibração.</p>
+                    <p className="admin__section-desc">Edite as tabelas e clique em <strong>Publicar</strong> para atualizar o site.</p>
                   </div>
                   <button className="btn btn-primary" onClick={() => {
                     setEditingCalib(null);
@@ -1341,14 +1475,24 @@ export default function AdminHome() {
                   }}>+ Nova Tabela</button>
                 </div>
 
-                {calibTables.length === 0 ? (
+                {calibHasDraft && (
+                  <div style={{
+                    background:'rgba(234,88,12,0.1)', border:'1px solid rgba(234,88,12,0.3)',
+                    borderRadius:'var(--radius-md)', padding:'10px 14px', marginBottom:12,
+                    fontSize:13, color:'#ea580c', fontWeight:600,
+                  }}>
+                    ⚠ Há alterações não publicadas. Clique em <strong>Publicar</strong> para salvar no site.
+                  </div>
+                )}
+
+                {calibDraft.length === 0 ? (
                   <div style={{ textAlign:'center', padding:'3rem', color:'var(--gray-400)' }}>
                     <div style={{ fontSize:48, marginBottom:12 }}>📊</div>
                     <p>Nenhuma tabela cadastrada ainda.</p>
                   </div>
                 ) : (
                   <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
-                    {calibTables.map((t) => (
+                    {calibDraft.map((t) => (
                       <div key={t.id} style={{
                         background: t.active ? 'var(--white)' : 'rgba(0,0,0,0.03)',
                         border:'1px solid var(--border-gray)',
@@ -1374,22 +1518,20 @@ export default function AdminHome() {
                           <button className="btn btn-outline" style={{ fontSize:12, padding:'6px 12px' }}
                             onClick={() => {
                               setEditingCalib(t);
-                              setCalibForm({ title:t.title, description:t.description, columns:[...t.columns], rows:t.rows.map(r=>[...r]), active:t.active, sort_order:t.sort_order });
+                              setCalibForm({ title:t.title, description:t.description, columns:[...t.columns], row_headers:[...(t.row_headers??[])], rows:t.rows.map(r=>[...r]), active:t.active, sort_order:t.sort_order });
                               setCalibMsg(null);
                               setShowCalibModal(true);
                             }}>✏ Editar</button>
                           <button className="btn" style={{ fontSize:12, padding:'6px 12px', background: t.active ? 'rgba(220,38,38,0.08)' : 'rgba(22,163,74,0.08)', color: t.active ? 'var(--danger)' : 'var(--success)', border:'none' }}
-                            onClick={async () => {
-                              await updateCalibrationTable(t.id, { active: !t.active });
-                              setCalibTables(prev => prev.map(x => x.id === t.id ? {...x, active: !t.active} : x));
-                              showToast(t.active ? 'Tabela inativada' : 'Tabela ativada');
+                            onClick={() => {
+                              setCalibDraft(prev => prev.map(x => x.id === t.id ? {...x, active: !t.active} : x));
+                              setCalibHasDraft(true);
                             }}>{t.active ? '🚫 Inativar' : '✓ Ativar'}</button>
                           <button className="btn btn-danger" style={{ fontSize:12, padding:'6px 12px' }}
-                            onClick={async () => {
+                            onClick={() => {
                               if (!confirm(`Excluir "${t.title}"?`)) return;
-                              await deleteCalibrationTable(t.id);
-                              setCalibTables(prev => prev.filter(x => x.id !== t.id));
-                              showToast('Tabela excluída');
+                              setCalibDraft(prev => prev.filter(x => x.id !== t.id));
+                              setCalibHasDraft(true);
                             }}>🗑</button>
                         </div>
                       </div>
@@ -1405,17 +1547,27 @@ export default function AdminHome() {
                 <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'1rem' }}>
                   <div>
                     <h2 className="admin__section-title">📞 Contatos</h2>
-                    <p className="admin__section-desc">Contatos exibidos no rodapé do site.</p>
+                    <p className="admin__section-desc">Edite os contatos e clique em <strong>Publicar</strong> para atualizar o site.</p>
                   </div>
                   <button className="btn btn-primary" onClick={() => {
                     setEditingContact(null);
-                    setContactForm({ name:'', role:'', email:'', phone:'', mobile:'', address:'', active:true, sort_order: contacts.length });
+                    setContactForm({ name:'', role:'', email:'', phone:'', mobile:'', address:'', active:true, sort_order: contactsDraft.length });
                     setContactMsg(null);
                     setShowContactModal(true);
                   }}>+ Novo Contato</button>
                 </div>
 
-                {contacts.length === 0 ? (
+                {contactsHasDraft && (
+                  <div style={{
+                    background:'rgba(234,88,12,0.1)', border:'1px solid rgba(234,88,12,0.3)',
+                    borderRadius:'var(--radius-md)', padding:'10px 14px', marginBottom:12,
+                    fontSize:13, color:'#ea580c', fontWeight:600,
+                  }}>
+                    ⚠ Há alterações não publicadas. Clique em <strong>Publicar</strong> para salvar no site.
+                  </div>
+                )}
+
+                {contactsDraft.length === 0 ? (
                   <div style={{ textAlign:'center', padding:'3rem', color:'var(--gray-400)' }}>
                     <div style={{ fontSize:48, marginBottom:12 }}>📞</div>
                     <p>Nenhum contato cadastrado ainda.</p>
@@ -1423,24 +1575,22 @@ export default function AdminHome() {
                   </div>
                 ) : (
                   <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
-                    {contacts.map((c) => (
+                    {contactsDraft.map((c) => (
                       <div key={c.id} style={{
                         background: c.active ? 'var(--white)' : 'rgba(0,0,0,0.03)',
-                        border: `1px solid ${c.active ? 'var(--border-gray)' : 'var(--border-gray)'}`,
+                        border:'1px solid var(--border-gray)',
                         borderRadius: 'var(--radius-md)', padding:'16px 20px',
                         display:'flex', alignItems:'center', gap:16,
                         opacity: c.active ? 1 : 0.6,
                       }}>
-                        {/* Avatar */}
                         <div style={{
                           width:48, height:48, borderRadius:'50%',
                           background:'var(--navy)', color:'white',
                           display:'flex', alignItems:'center', justifyContent:'center',
                           fontWeight:800, fontSize:16, flexShrink:0,
                         }}>
-                          {c.name.split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase()}
+                          {c.name.split(' ').slice(0,2).map((w: string)=>w[0]).join('').toUpperCase()}
                         </div>
-                        {/* Info */}
                         <div style={{ flex:1, minWidth:0 }}>
                           <div style={{ display:'flex', alignItems:'center', gap:8, flexWrap:'wrap' }}>
                             <span style={{ fontWeight:700, color:'var(--navy)', fontSize:14 }}>{c.name}</span>
@@ -1458,7 +1608,6 @@ export default function AdminHome() {
                             {c.address && <span style={{ fontSize:12, color:'var(--gray-400)' }}>📍 {c.address}</span>}
                           </div>
                         </div>
-                        {/* Actions */}
                         <div style={{ display:'flex', gap:8, flexShrink:0 }}>
                           <button className="btn btn-outline" style={{ fontSize:12, padding:'6px 12px' }}
                             onClick={() => {
@@ -1467,21 +1616,17 @@ export default function AdminHome() {
                               setContactMsg(null);
                               setShowContactModal(true);
                             }}>✏ Editar</button>
-                          <button
-                            className="btn"
+                          <button className="btn"
                             style={{ fontSize:12, padding:'6px 12px', background: c.active ? 'rgba(220,38,38,0.08)' : 'rgba(22,163,74,0.08)', color: c.active ? 'var(--danger)' : 'var(--success)', border:'none' }}
-                            onClick={async () => {
-                              await updateContact(c.id, { active: !c.active });
-                              setContacts(prev => prev.map(x => x.id === c.id ? {...x, active: !c.active} : x));
-                              showToast(c.active ? 'Contato inativado' : 'Contato ativado');
-                            }}
-                          >{c.active ? '🚫 Inativar' : '✓ Ativar'}</button>
+                            onClick={() => {
+                              setContactsDraft(prev => prev.map(x => x.id === c.id ? {...x, active: !c.active} : x));
+                              setContactsHasDraft(true);
+                            }}>{c.active ? '🚫 Inativar' : '✓ Ativar'}</button>
                           <button className="btn btn-danger" style={{ fontSize:12, padding:'6px 12px' }}
-                            onClick={async () => {
+                            onClick={() => {
                               if (!confirm(`Excluir "${c.name}"?`)) return;
-                              await deleteContact(c.id);
-                              setContacts(prev => prev.filter(x => x.id !== c.id));
-                              showToast('Contato excluído');
+                              setContactsDraft(prev => prev.filter(x => x.id !== c.id));
+                              setContactsHasDraft(true);
                             }}>🗑</button>
                         </div>
                       </div>
@@ -1495,17 +1640,26 @@ export default function AdminHome() {
             {activeTab === 'empresa' && (
               <div className="admin__section">
                 <h2 className="admin__section-title">🏢 Configurações da Empresa</h2>
-                <p className="admin__section-desc" style={{ marginBottom: '1.5rem' }}>
+                <p className="admin__section-desc" style={{ marginBottom: '1rem' }}>
                   Essas informações são exibidas na aba do navegador, no navbar e em todo o site.
                 </p>
+                {companyHasDraft && (
+                  <div style={{
+                    background:'rgba(234,88,12,0.1)', border:'1px solid rgba(234,88,12,0.3)',
+                    borderRadius:'var(--radius-md)', padding:'10px 14px', marginBottom:'1rem',
+                    fontSize:13, color:'#ea580c', fontWeight:600,
+                  }}>
+                    ⚠ Há alterações não publicadas. Clique em <strong>Publicar</strong> para salvar no site.
+                  </div>
+                )}
 
                 <div className="admin__field">
                   <label className="form-label">Nome da Empresa</label>
                   <input
                     className="form-input"
                     placeholder="Ex: AeroTech Brasil"
-                    value={company.name}
-                    onChange={e => setCompany(prev => ({ ...prev, name: e.target.value }))}
+                    value={companyDraft.name}
+                    onChange={e => { setCompanyDraft(prev => ({ ...prev, name: e.target.value })); setCompanyHasDraft(true); }}
                   />
                   <p className="admin__hint">Aparece na aba do navegador, navbar e rodapé.</p>
                 </div>
@@ -1516,8 +1670,8 @@ export default function AdminHome() {
                     className="form-input"
                     rows={3}
                     placeholder="Ex: Referência nacional em aviação agrícola desde 2005..."
-                    value={company.description ?? ''}
-                    onChange={e => setCompany(prev => ({ ...prev, description: e.target.value }))}
+                    value={companyDraft.description ?? ''}
+                    onChange={e => { setCompanyDraft(prev => ({ ...prev, description: e.target.value })); setCompanyHasDraft(true); }}
                     style={{ resize: 'vertical' }}
                   />
                   <p className="admin__hint">Texto exibido abaixo do logo no rodapé do site.</p>
@@ -1528,8 +1682,8 @@ export default function AdminHome() {
                   <input
                     className="form-input"
                     placeholder="Ex: CNPJ: 12.345.678/0001-90 · Palotina, Paraná — Brasil"
-                    value={company.cnpj ?? ''}
-                    onChange={e => setCompany(prev => ({ ...prev, cnpj: e.target.value }))}
+                    value={companyDraft.cnpj ?? ''}
+                    onChange={e => { setCompanyDraft(prev => ({ ...prev, cnpj: e.target.value })); setCompanyHasDraft(true); }}
                   />
                   <p className="admin__hint">Exibido no rodapé inferior do site. Deixe em branco para ocultar.</p>
                 </div>
@@ -1540,14 +1694,14 @@ export default function AdminHome() {
                   <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 12 }}>
                     <div style={{
                       width: 64, height: 64, borderRadius: 12,
-                      background: company.icon_url ? '#f5f5f5' : 'var(--gold)',
+                      background: companyDraft.icon_url ? '#f5f5f5' : 'var(--gold)',
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
                       border: '1px solid var(--border-gray)', overflow: 'hidden', flexShrink: 0,
                     }}>
-                      {company.icon_url
-                        ? <img src={company.icon_url} alt="ícone" style={{ width: '100%', height: '100%', objectFit: 'contain', padding: 6 }} />
+                      {companyDraft.icon_url
+                        ? <img src={companyDraft.icon_url} alt="ícone" style={{ width: '100%', height: '100%', objectFit: 'contain', padding: 6 }} />
                         : <span style={{ fontSize: 22, fontWeight: 900, color: 'var(--navy)' }}>
-                            {(company.name || 'AT').slice(0, 2).toUpperCase()}
+                            {(companyDraft.name || 'AT').slice(0, 2).toUpperCase()}
                           </span>
                       }
                     </div>
@@ -1561,7 +1715,7 @@ export default function AdminHome() {
                           const file = e.target.files?.[0];
                           if (!file) return;
                           const reader = new FileReader();
-                          reader.onload = ev => setCompany(prev => ({ ...prev, icon_url: ev.target?.result as string }));
+                          reader.onload = ev => { setCompanyDraft(prev => ({ ...prev, icon_url: ev.target?.result as string })); setCompanyHasDraft(true); };
                           reader.readAsDataURL(file);
                           e.target.value = '';
                         }}
@@ -1569,9 +1723,9 @@ export default function AdminHome() {
                       <button className="btn admin__upload-btn" onClick={() => companyIconRef.current?.click()}>
                         📁 Carregar imagem
                       </button>
-                      {company.icon_url && (
+                      {companyDraft.icon_url && (
                         <button className="btn btn-danger" style={{ fontSize: '12px', padding: '6px 12px', marginLeft: 8 }}
-                          onClick={() => setCompany(prev => ({ ...prev, icon_url: '' }))}>
+                          onClick={() => { setCompanyDraft(prev => ({ ...prev, icon_url: '' })); setCompanyHasDraft(true); }}>
                           🗑 Remover
                         </button>
                       )}
@@ -1581,8 +1735,8 @@ export default function AdminHome() {
                   <input
                     className="form-input"
                     placeholder="Ou cole a URL do ícone..."
-                    value={company.icon_url?.startsWith('data:') ? '' : (company.icon_url ?? '')}
-                    onChange={e => setCompany(prev => ({ ...prev, icon_url: e.target.value }))}
+                    value={companyDraft.icon_url?.startsWith('data:') ? '' : (companyDraft.icon_url ?? '')}
+                    onChange={e => { setCompanyDraft(prev => ({ ...prev, icon_url: e.target.value })); setCompanyHasDraft(true); }}
                   />
                   <p className="admin__hint">Recomendado: PNG ou SVG quadrado (ex: 512×512px). Aparece na aba do navegador e no navbar.</p>
                 </div>
@@ -1597,7 +1751,7 @@ export default function AdminHome() {
                   <div className="admin-color-grid">
                     {/* Cor Principal */}
                     <div className="admin-color-item">
-                      <div className="admin-color-preview" style={{ background: company.color_primary || '#0a1628' }} />
+                      <div className="admin-color-preview" style={{ background: companyDraft.color_primary || '#0a1628' }} />
                       <div className="admin-color-info">
                         <span className="admin-color-label">Cor Principal</span>
                         <span className="admin-color-desc">Navbar, footer, fundos escuros</span>
@@ -1605,18 +1759,19 @@ export default function AdminHome() {
                       <input
                         type="color"
                         className="admin-color-picker"
-                        value={company.color_primary || '#0a1628'}
+                        value={companyDraft.color_primary || '#0a1628'}
                         onChange={e => {
                           const updated = { ...company, color_primary: e.target.value };
-                          setCompany(updated);
+                          setCompanyDraft(updated);
                           applyCompanyColors(updated);
+                          setCompanyHasDraft(true);
                         }}
                       />
                     </div>
 
                     {/* Cor de Destaque */}
                     <div className="admin-color-item">
-                      <div className="admin-color-preview" style={{ background: company.color_secondary || '#c8972a' }} />
+                      <div className="admin-color-preview" style={{ background: companyDraft.color_secondary || '#c8972a' }} />
                       <div className="admin-color-info">
                         <span className="admin-color-label">Cor de Destaque</span>
                         <span className="admin-color-desc">Botões, bordas ativas, textos em evidência</span>
@@ -1624,11 +1779,12 @@ export default function AdminHome() {
                       <input
                         type="color"
                         className="admin-color-picker"
-                        value={company.color_secondary || '#c8972a'}
+                        value={companyDraft.color_secondary || '#c8972a'}
                         onChange={e => {
                           const updated = { ...company, color_secondary: e.target.value };
-                          setCompany(updated);
+                          setCompanyDraft(updated);
                           applyCompanyColors(updated);
+                          setCompanyHasDraft(true);
                         }}
                       />
                     </div>
@@ -1637,7 +1793,7 @@ export default function AdminHome() {
                   {/* Preview das cores */}
                   <div className="admin-color-preview-bar" style={{ marginTop: 16 }}>
                     <div style={{
-                      background: company.color_primary || '#0a1628',
+                      background: companyDraft.color_primary || '#0a1628',
                       padding: '14px 20px',
                       borderRadius: 'var(--radius-md) var(--radius-md) 0 0',
                       display: 'flex', alignItems: 'center', justifyContent: 'space-between',
@@ -1655,12 +1811,12 @@ export default function AdminHome() {
                       display: 'flex', gap: 10, alignItems: 'center',
                     }}>
                       <div style={{
-                        background: company.color_secondary || '#c8972a',
-                        color: company.color_primary || '#0a1628',
+                        background: companyDraft.color_secondary || '#c8972a',
+                        color: companyDraft.color_primary || '#0a1628',
                         padding: '6px 16px', borderRadius: 20,
                         fontSize: 12, fontWeight: 800,
                       }}>Botão</div>
-                      <span style={{ color: company.color_secondary || '#c8972a', fontSize: 13, fontWeight: 700 }}>
+                      <span style={{ color: companyDraft.color_secondary || '#c8972a', fontSize: 13, fontWeight: 700 }}>
                         Texto em destaque
                       </span>
                     </div>
@@ -1671,8 +1827,9 @@ export default function AdminHome() {
                     style={{ marginTop: 12, fontSize: 12 }}
                     onClick={() => {
                       const reset = { ...company, color_primary: '#0a1628', color_secondary: '#c8972a' };
-                      setCompany(reset);
+                      setCompanyDraft(reset);
                       applyCompanyColors(reset);
+                      setCompanyHasDraft(false);
                     }}
                   >
                     ↺ Restaurar cores padrão
@@ -1695,7 +1852,7 @@ export default function AdminHome() {
                   style={{ marginTop: '1.5rem' }}
                   disabled={companySaving}
                   onClick={async () => {
-                    if (!company.name.trim()) {
+                    if (!companyDraft.name.trim()) {
                       setCompanyMsg({ type: 'error', text: 'O nome da empresa é obrigatório.' });
                       return;
                     }
@@ -1705,7 +1862,7 @@ export default function AdminHome() {
                       await saveCompanySettings(company);
                       setCompanyMsg({ type: 'success', text: 'Configurações salvas com sucesso!' });
                       // Atualiza title imediatamente e recarrega para refletir em toda a UI
-                      document.title = company.name;
+                      document.title = companyDraft.name;
                       setTimeout(() => window.location.reload(), 800);
                     } catch {
                       setCompanyMsg({ type: 'error', text: 'Erro ao salvar. Tente novamente.' });
@@ -1728,6 +1885,7 @@ export default function AdminHome() {
       {showCalibModal && (() => {
         const cols = calibForm.columns;
         const rows = calibForm.rows;
+        const rowHeaders = calibForm.row_headers ?? [];
 
         const setCol = (ci: number, val: string) =>
           setCalibForm(p => { const c=[...p.columns]; c[ci]=val; return {...p,columns:c}; });
@@ -1747,10 +1905,18 @@ export default function AdminHome() {
           }));
 
         const addRow = () =>
-          setCalibForm(p => ({ ...p, rows: [...p.rows, Array(p.columns.length).fill('')] }));
+          setCalibForm(p => ({
+            ...p,
+            row_headers: [...(p.row_headers??[]), ''],
+            rows: [...p.rows, Array(p.columns.length).fill('')],
+          }));
 
         const removeRow = (ri: number) =>
-          setCalibForm(p => ({ ...p, rows: p.rows.filter((_,i)=>i!==ri) }));
+          setCalibForm(p => ({
+            ...p,
+            row_headers: (p.row_headers??[]).filter((_,i)=>i!==ri),
+            rows: p.rows.filter((_,i)=>i!==ri),
+          }));
 
         const setCell = (ri: number, ci: number, val: string) =>
           setCalibForm(p => {
@@ -1759,9 +1925,16 @@ export default function AdminHome() {
             return {...p, rows:r};
           });
 
+        const setRowHeader = (ri: number, val: string) =>
+          setCalibForm(p => {
+            const h = [...(p.row_headers??[])];
+            h[ri] = val;
+            return {...p, row_headers:h};
+          });
+
         return (
           <div className="admin-prod-modal__overlay" onClick={() => setShowCalibModal(false)}>
-            <div className="admin-prod-modal" style={{ maxWidth:780, width:'95vw' }} onClick={e => e.stopPropagation()}>
+            <div className="admin-prod-modal" style={{ maxWidth:820, width:'95vw' }} onClick={e => e.stopPropagation()}>
               <div className="admin-prod-modal__header">
                 <h2>{editingCalib ? '✏ Editar Tabela' : '+ Nova Tabela de Calibração'}</h2>
                 <button className="produto-modal__close" style={{ color:'white', background:'rgba(255,255,255,0.1)' }}
@@ -1778,7 +1951,7 @@ export default function AdminHome() {
                   </div>
                   <div className="admin__field">
                     <label className="form-label">Descrição</label>
-                    <textarea className="form-input" rows={2} placeholder="Descrição opcional da tabela..."
+                    <textarea className="form-input" rows={2} placeholder="Descrição opcional..."
                       value={calibForm.description} onChange={e => setCalibForm(p=>({...p,description:e.target.value}))}
                       style={{ resize:'vertical' }} />
                   </div>
@@ -1799,7 +1972,7 @@ export default function AdminHome() {
                 {/* Editor de colunas */}
                 <div style={{ marginBottom:12 }}>
                   <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:8 }}>
-                    <label className="form-label" style={{ marginBottom:0 }}>Colunas ({cols.length})</label>
+                    <label className="form-label" style={{ marginBottom:0 }}>Colunas de Dados ({cols.length})</label>
                     <button className="btn btn-outline" style={{ fontSize:11, padding:'4px 10px' }} onClick={addCol}>
                       + Coluna
                     </button>
@@ -1819,7 +1992,7 @@ export default function AdminHome() {
                   </div>
                 </div>
 
-                {/* Editor de linhas */}
+                {/* Editor de linhas com títulos */}
                 <div>
                   <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:8 }}>
                     <label className="form-label" style={{ marginBottom:0 }}>Linhas ({rows.length})</label>
@@ -1829,9 +2002,13 @@ export default function AdminHome() {
                   </div>
 
                   <div style={{ overflowX:'auto' }}>
-                    <table style={{ width:'100%', borderCollapse:'collapse', minWidth: cols.length * 120 }}>
+                    <table style={{ width:'100%', borderCollapse:'collapse', minWidth: (cols.length + 1) * 120 }}>
                       <thead>
                         <tr style={{ background:'var(--navy)' }}>
+                          {/* Coluna de título da linha */}
+                          <th style={{ padding:'8px 10px', color:'var(--gold)', fontSize:11, fontWeight:700, textAlign:'left', whiteSpace:'nowrap', minWidth:120, borderRight:'2px solid rgba(200,151,42,0.4)' }}>
+                            Título da Linha
+                          </th>
                           {cols.map((col, ci) => (
                             <th key={ci} style={{ padding:'8px 10px', color:'white', fontSize:11, fontWeight:700, textAlign:'left', whiteSpace:'nowrap' }}>
                               {col}
@@ -1843,6 +2020,16 @@ export default function AdminHome() {
                       <tbody>
                         {rows.map((row, ri) => (
                           <tr key={ri} style={{ background: ri%2===0 ? 'white' : 'var(--bg-light)' }}>
+                            {/* Input título da linha */}
+                            <td style={{ padding:'4px 6px', borderBottom:'1px solid var(--border-gray)', borderRight:'2px solid var(--border-gray)' }}>
+                              <input
+                                className="form-input"
+                                style={{ padding:'6px 8px', fontSize:12, fontWeight:600, minWidth:100, background: 'rgba(200,151,42,0.06)' }}
+                                value={rowHeaders[ri] ?? ''}
+                                onChange={e => setRowHeader(ri, e.target.value)}
+                                placeholder="Título..."
+                              />
+                            </td>
                             {cols.map((_, ci) => (
                               <td key={ci} style={{ padding:'4px 6px', borderBottom:'1px solid var(--border-gray)' }}>
                                 <input
@@ -1882,30 +2069,20 @@ export default function AdminHome() {
               <div className="admin-prod-modal__footer" style={{ gap:10 }}>
                 <button className="btn btn-outline" onClick={() => setShowCalibModal(false)}>Cancelar</button>
                 <button className="btn btn-primary" disabled={calibSaving}
-                  onClick={async () => {
+                  onClick={() => {
                     if (!calibForm.title.trim()) { setCalibMsg({ type:'error', text:'O título é obrigatório.' }); return; }
                     if (calibForm.columns.length === 0) { setCalibMsg({ type:'error', text:'Adicione ao menos uma coluna.' }); return; }
-                    setCalibSaving(true); setCalibMsg(null);
-                    try {
-                      if (editingCalib) {
-                        const ok = await updateCalibrationTable(editingCalib.id, calibForm);
-                        if (ok) {
-                          setCalibTables(prev => prev.map(x => x.id === editingCalib.id ? {...x,...calibForm} : x));
-                          setCalibMsg({ type:'success', text:'Tabela atualizada!' });
-                          setTimeout(() => setShowCalibModal(false), 800);
-                        } else { setCalibMsg({ type:'error', text:'Erro ao atualizar.' }); }
-                      } else {
-                        const created = await saveCalibrationTable(calibForm);
-                        if (created) {
-                          setCalibTables(prev => [...prev, created]);
-                          setCalibMsg({ type:'success', text:'Tabela criada!' });
-                          setTimeout(() => setShowCalibModal(false), 800);
-                        } else { setCalibMsg({ type:'error', text:'Erro ao criar tabela.' }); }
-                      }
-                    } catch { setCalibMsg({ type:'error', text:'Erro inesperado.' }); }
-                    finally { setCalibSaving(false); }
+                    if (editingCalib) {
+                      setCalibDraft(prev => prev.map(x => x.id === editingCalib.id ? {...x,...calibForm} : x));
+                    } else {
+                      const tempId = `temp_${Date.now()}`;
+                      setCalibDraft(prev => [...prev, { id: tempId, ...calibForm }]);
+                    }
+                    setCalibHasDraft(true);
+                    setCalibMsg({ type:'success', text: editingCalib ? 'Tabela editada! Clique em Publicar para salvar.' : 'Tabela adicionada! Clique em Publicar para salvar.' });
+                    setTimeout(() => setShowCalibModal(false), 800);
                   }}>
-                  {calibSaving ? 'Salvando...' : '💾 Salvar'}
+                  💾 Salvar Rascunho
                 </button>
               </div>
             </div>
@@ -2053,41 +2230,25 @@ export default function AdminHome() {
             </div>
             <div className="admin-prod-modal__footer" style={{ gap:10 }}>
               <button className="btn btn-outline" onClick={() => setShowNewsModal(false)}>Cancelar</button>
-              <button className="btn btn-primary" disabled={newsSaving}
-                onClick={async () => {
+              <button className="btn btn-primary"
+                onClick={() => {
                   if (!newsForm.title.trim()) {
                     setNewsMsg({ type:'error', text:'O título é obrigatório.' });
                     return;
                   }
-                  setNewsSaving(true);
-                  setNewsMsg(null);
-                  try {
-                    if (editingNews) {
-                      const ok = await updateNews(editingNews.id, newsForm);
-                      if (ok) {
-                        setNews(prev => prev.map(x => x.id === editingNews.id ? {...x,...newsForm} : x));
-                        setNewsMsg({ type:'success', text:'Notícia atualizada!' });
-                        setTimeout(() => setShowNewsModal(false), 800);
-                      } else {
-                        setNewsMsg({ type:'error', text:'Erro ao atualizar.' });
-                      }
-                    } else {
-                      const created = await saveNews(newsForm);
-                      if (created) {
-                        setNews(prev => [...prev, created]);
-                        setNewsMsg({ type:'success', text:'Notícia criada!' });
-                        setTimeout(() => setShowNewsModal(false), 800);
-                      } else {
-                        setNewsMsg({ type:'error', text:'Erro ao criar notícia.' });
-                      }
-                    }
-                  } catch {
-                    setNewsMsg({ type:'error', text:'Erro inesperado.' });
-                  } finally {
-                    setNewsSaving(false);
+                  if (editingNews) {
+                    // Atualiza no draft local
+                    setNewsDraft(prev => prev.map(x => x.id === editingNews.id ? {...x,...newsForm} : x));
+                  } else {
+                    // Adiciona com ID temporário no draft local
+                    const tempId = `temp_${Date.now()}`;
+                    setNewsDraft(prev => [...prev, { id: tempId, ...newsForm }]);
                   }
+                  setNewsHasDraft(true);
+                  setNewsMsg({ type:'success', text: editingNews ? 'Notícia editada! Clique em Publicar para salvar.' : 'Notícia adicionada! Clique em Publicar para salvar.' });
+                  setTimeout(() => setShowNewsModal(false), 800);
                 }}>
-                {newsSaving ? 'Salvando...' : '💾 Salvar'}
+                💾 Salvar Rascunho
               </button>
             </div>
           </div>
@@ -2163,41 +2324,23 @@ export default function AdminHome() {
             </div>
             <div className="admin-prod-modal__footer" style={{ gap:10 }}>
               <button className="btn btn-outline" onClick={() => setShowContactModal(false)}>Cancelar</button>
-              <button className="btn btn-primary" disabled={contactSaving}
-                onClick={async () => {
+              <button className="btn btn-primary"
+                onClick={() => {
                   if (!contactForm.name.trim()) {
                     setContactMsg({ type:'error', text:'O nome é obrigatório.' });
                     return;
                   }
-                  setContactSaving(true);
-                  setContactMsg(null);
-                  try {
-                    if (editingContact) {
-                      const ok = await updateContact(editingContact.id, contactForm);
-                      if (ok) {
-                        setContacts(prev => prev.map(x => x.id === editingContact.id ? {...x,...contactForm} : x));
-                        setContactMsg({ type:'success', text:'Contato atualizado!' });
-                        setTimeout(() => setShowContactModal(false), 800);
-                      } else {
-                        setContactMsg({ type:'error', text:'Erro ao atualizar.' });
-                      }
-                    } else {
-                      const created = await saveContact(contactForm);
-                      if (created) {
-                        setContacts(prev => [...prev, created]);
-                        setContactMsg({ type:'success', text:'Contato criado!' });
-                        setTimeout(() => setShowContactModal(false), 800);
-                      } else {
-                        setContactMsg({ type:'error', text:'Erro ao criar contato.' });
-                      }
-                    }
-                  } catch {
-                    setContactMsg({ type:'error', text:'Erro inesperado.' });
-                  } finally {
-                    setContactSaving(false);
+                  if (editingContact) {
+                    setContactsDraft(prev => prev.map(x => x.id === editingContact.id ? {...x,...contactForm} : x));
+                  } else {
+                    const tempId = `temp_${Date.now()}`;
+                    setContactsDraft(prev => [...prev, { id: tempId, ...contactForm }]);
                   }
+                  setContactsHasDraft(true);
+                  setContactMsg({ type:'success', text: editingContact ? 'Contato editado! Clique em Publicar para salvar.' : 'Contato adicionado! Clique em Publicar para salvar.' });
+                  setTimeout(() => setShowContactModal(false), 800);
                 }}>
-                {contactSaving ? 'Salvando...' : '💾 Salvar'}
+                💾 Salvar Rascunho
               </button>
             </div>
           </div>

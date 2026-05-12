@@ -164,12 +164,15 @@ export default function AdminHome() {
     const [showAcessoModal, setShowAcessoModal] = useState(false);
     // ── Empresa ──
     const [company, setCompany] = useState({ name: '', icon_url: '', color_primary: '#0a1628', color_secondary: '#c8972a', description: '', cnpj: '' });
+    const [companyDraft, setCompanyDraft] = useState({ name: '', icon_url: '', color_primary: '#0a1628', color_secondary: '#c8972a', description: '', cnpj: '' });
+    const [companyHasDraft, setCompanyHasDraft] = useState(false);
     const [companySaving, setCompanySaving] = useState(false);
     const [companyMsg, setCompanyMsg] = useState(null);
     const companyIconRef = useRef(null);
     // ── Contatos ──
     const [contacts, setContacts] = useState([]);
-    const [contactsLoading, setContactsLoading] = useState(false);
+    const [contactsDraft, setContactsDraft] = useState([]);
+    const [contactsHasDraft, setContactsHasDraft] = useState(false);
     const [editingContact, setEditingContact] = useState(null);
     const [showContactModal, setShowContactModal] = useState(false);
     const [contactForm, setContactForm] = useState({
@@ -178,7 +181,7 @@ export default function AdminHome() {
     const [contactSaving, setContactSaving] = useState(false);
     const [contactMsg, setContactMsg] = useState(null);
     useEffect(() => {
-        getContacts().then(setContacts);
+        getContacts().then(data => { setContacts(data); setContactsDraft(data); });
     }, []);
     // ── Notícias ──
     const defaultNewsForm = () => ({
@@ -187,33 +190,38 @@ export default function AdminHome() {
         published_at: new Date().toISOString().split('T')[0],
     });
     const [news, setNews] = useState([]);
+    const [newsDraft, setNewsDraft] = useState([]); // rascunho local
+    const [newsHasDraft, setNewsHasDraft] = useState(false); // dirty flag
     const [editingNews, setEditingNews] = useState(null);
     const [showNewsModal, setShowNewsModal] = useState(false);
     const [newsForm, setNewsForm] = useState(defaultNewsForm());
-    const [newsSaving, setNewsSaving] = useState(false);
+    const [newsPublishing, setNewsPublishing] = useState(false);
     const [newsMsg, setNewsMsg] = useState(null);
     const [newsImgUploading, setNewsImgUploading] = useState(false);
     const newsMainImgRef = useRef(null);
     const newsExtraImgRef = useRef(null);
     useEffect(() => {
-        getNews().then(setNews);
+        getNews().then(data => { setNews(data); setNewsDraft(data); });
     }, []);
     // ── Calibração ──
     const defaultCalibForm = () => ({
         title: '', description: '', columns: ['Coluna 1', 'Coluna 2', 'Coluna 3'],
+        row_headers: [''],
         rows: [['', '', '']], active: true, sort_order: 0,
     });
     const [calibTables, setCalibTables] = useState([]);
+    const [calibDraft, setCalibDraft] = useState([]);
+    const [calibHasDraft, setCalibHasDraft] = useState(false);
     const [editingCalib, setEditingCalib] = useState(null);
     const [showCalibModal, setShowCalibModal] = useState(false);
     const [calibForm, setCalibForm] = useState(defaultCalibForm());
     const [calibSaving, setCalibSaving] = useState(false);
     const [calibMsg, setCalibMsg] = useState(null);
     useEffect(() => {
-        getCalibrationTables().then(setCalibTables);
+        getCalibrationTables().then(data => { setCalibTables(data); setCalibDraft(data); });
     }, []);
     useEffect(() => {
-        getCompanySettings().then(s => { setCompany(s); applyCompanyColors(s); });
+        getCompanySettings().then(s => { setCompany(s); setCompanyDraft(s); applyCompanyColors(s); });
     }, []);
     const authData = JSON.parse(sessionStorage.getItem('admin_auth') ?? '{}');
     const [acessoName, setAcessoName] = useState(authData.name ?? '');
@@ -298,6 +306,14 @@ export default function AdminHome() {
             const pub = content.published.products;
             return JSON.stringify(products) !== JSON.stringify(pub.products) || prodHeadline !== pub.headline || prodSubline !== pub.subheadline;
         }
+        if (activeTab === 'noticias')
+            return newsHasDraft;
+        if (activeTab === 'calibracao')
+            return calibHasDraft;
+        if (activeTab === 'contatos')
+            return contactsHasDraft;
+        if (activeTab === 'empresa')
+            return companyHasDraft;
         return false;
     })();
     const sobrePayload = () => ({
@@ -320,19 +336,23 @@ export default function AdminHome() {
             // Abas sem draft — abre direto a página pública
         }
         else if (activeTab === 'calibracao') {
-            window.open('/calibracao', '_blank');
+            sessionStorage.setItem('calib_preview_draft', JSON.stringify(calibDraft));
+            window.open('/preview?page=calibracao', '_blank');
         }
         else if (activeTab === 'noticias') {
-            window.open('/noticias', '_blank');
+            sessionStorage.setItem('news_preview_draft', JSON.stringify(newsDraft));
+            window.open('/preview?page=noticias', '_blank');
         }
         else if (activeTab === 'contatos') {
-            window.open('/contatos', '_blank');
+            sessionStorage.setItem('contacts_preview_draft', JSON.stringify(contactsDraft));
+            window.open('/preview?page=contatos', '_blank');
         }
         else if (activeTab === 'empresa') {
-            window.open('/', '_blank');
+            sessionStorage.setItem('empresa_preview_draft', JSON.stringify(companyDraft));
+            window.open('/preview?page=empresa', '_blank');
         }
     };
-    const confirmPublish = () => {
+    const confirmPublish = async () => {
         setShowModal(false);
         if (activeTab === 'home')
             publishDirect('home', { carouselImages: homeImages, companyDescription: homeText, carouselTagline, carouselTitle, carouselSubtitle, sobreTitle, stats, featuresTitle, features });
@@ -340,9 +360,127 @@ export default function AdminHome() {
             publishDirect('sobre', sobrePayload());
         else if (activeTab === 'produtos')
             publishDirect('products', { products, headline: prodHeadline, subheadline: prodSubline });
+        else if (activeTab === 'noticias') {
+            setNewsPublishing(true);
+            try {
+                // Sincroniza o draft com o banco:
+                // 1. Itens com ID real → update
+                // 2. Itens com ID temporário (temp_) → insert
+                // 3. Itens que sumiram do draft → delete
+                const toDelete = news.filter(n => !newsDraft.find(d => d.id === n.id));
+                const toInsert = newsDraft.filter(d => d.id.startsWith('temp_'));
+                const toUpdate = newsDraft.filter(d => !d.id.startsWith('temp_'));
+                await Promise.all([
+                    ...toDelete.map(n => deleteNews(n.id)),
+                    ...toUpdate.map(n => updateNews(n.id, n)),
+                ]);
+                const inserted = await Promise.all(toInsert.map(d => {
+                    const { id: _id, ...form } = d;
+                    return saveNews(form);
+                }));
+                // Reconstrói o draft com IDs reais
+                const finalDraft = [
+                    ...toUpdate,
+                    ...inserted.filter(Boolean),
+                ].sort((a, b) => a.sort_order - b.sort_order);
+                setNews(finalDraft);
+                setNewsDraft(finalDraft);
+                setNewsHasDraft(false);
+                showToast('✅ Notícias publicadas!');
+            }
+            catch {
+                showToast('❌ Erro ao publicar notícias.');
+            }
+            finally {
+                setNewsPublishing(false);
+            }
+            return;
+        }
+        else if (activeTab === 'calibracao') {
+            try {
+                const toDelete = calibTables.filter(t => !calibDraft.find(d => d.id === t.id));
+                const toInsert = calibDraft.filter(d => d.id.startsWith('temp_'));
+                const toUpdate = calibDraft.filter(d => !d.id.startsWith('temp_'));
+                await Promise.all([
+                    ...toDelete.map(t => deleteCalibrationTable(t.id)),
+                    ...toUpdate.map(t => updateCalibrationTable(t.id, t)),
+                ]);
+                const inserted = await Promise.all(toInsert.map(d => { const { id: _id, ...form } = d; return saveCalibrationTable(form); }));
+                const final = [...toUpdate, ...inserted.filter(Boolean)].sort((a, b) => a.sort_order - b.sort_order);
+                setCalibTables(final);
+                setCalibDraft(final);
+                setCalibHasDraft(false);
+                showToast('✅ Tabelas de calibração publicadas!');
+            }
+            catch {
+                showToast('❌ Erro ao publicar.');
+            }
+            return;
+        }
+        else if (activeTab === 'contatos') {
+            try {
+                const toDelete = contacts.filter(c => !contactsDraft.find(d => d.id === c.id));
+                const toInsert = contactsDraft.filter(d => d.id.startsWith('temp_'));
+                const toUpdate = contactsDraft.filter(d => !d.id.startsWith('temp_'));
+                await Promise.all([
+                    ...toDelete.map(c => deleteContact(c.id)),
+                    ...toUpdate.map(c => updateContact(c.id, c)),
+                ]);
+                const inserted = await Promise.all(toInsert.map(d => { const { id: _id, ...form } = d; return saveContact(form); }));
+                const final = [...toUpdate, ...inserted.filter(Boolean)].sort((a, b) => a.sort_order - b.sort_order);
+                setContacts(final);
+                setContactsDraft(final);
+                setContactsHasDraft(false);
+                showToast('✅ Contatos publicados!');
+            }
+            catch {
+                showToast('❌ Erro ao publicar contatos.');
+            }
+            return;
+        }
+        else if (activeTab === 'empresa') {
+            try {
+                await saveCompanySettings(companyDraft);
+                setCompany(companyDraft);
+                setCompanyHasDraft(false);
+                applyCompanyColors(companyDraft);
+                document.title = companyDraft.name;
+                showToast('✅ Configurações da empresa publicadas!');
+                setTimeout(() => window.location.reload(), 800);
+            }
+            catch {
+                showToast('❌ Erro ao publicar.');
+            }
+            return;
+        }
         showToast('✅ Publicado! O site já exibe o novo conteúdo.');
     };
     const handleDiscard = () => {
+        if (activeTab === 'noticias') {
+            setNewsDraft(structuredClone(news));
+            setNewsHasDraft(false);
+            showToast('Alterações descartadas.');
+            return;
+        }
+        if (activeTab === 'calibracao') {
+            setCalibDraft(structuredClone(calibTables));
+            setCalibHasDraft(false);
+            showToast('Alterações descartadas.');
+            return;
+        }
+        if (activeTab === 'contatos') {
+            setContactsDraft(structuredClone(contacts));
+            setContactsHasDraft(false);
+            showToast('Alterações descartadas.');
+            return;
+        }
+        if (activeTab === 'empresa') {
+            setCompanyDraft(structuredClone(company));
+            setCompanyHasDraft(false);
+            applyCompanyColors(company);
+            showToast('Alterações descartadas.');
+            return;
+        }
         if (activeTab === 'home') {
             const pub = content.published.home;
             setHomeImages(structuredClone(pub.carouselImages));
@@ -472,12 +610,16 @@ export default function AdminHome() {
                                                     if (!p)
                                                         return null;
                                                     return (_jsx("div", { className: "admin-prod-modal__overlay", onClick: () => setEditingProductId(null), children: _jsxs("div", { className: "admin-prod-modal", onClick: e => e.stopPropagation(), children: [_jsxs("div", { className: "admin-prod-modal__header", children: [_jsx("h2", { children: "\u270F Editar Produto" }), _jsx("button", { className: "produto-modal__close", onClick: () => setEditingProductId(null), children: "\u2715" })] }), _jsx("div", { className: "admin-prod-modal__body", children: _jsx(ProductRow, { product: p, categories: content.categories, onChange: updateProduct, onCategoriesChange: updateProductCategories, onGalleryChange: updateProductGallery, onSpecsChange: updateProductSpecs, onInfoChange: updateProductInfo, onDemoImagesChange: updateProductDemoImages, onRemove: (id) => { removeProduct(id); setEditingProductId(null); } }) }), _jsx("div", { className: "admin-prod-modal__footer", children: _jsx("button", { className: "btn btn-outline", onClick: () => setEditingProductId(null), children: "Fechar" }) })] }) }));
-                                                })()] })), activeTab === 'categorias' && (_jsx(CategoryManager, { categories: content.categories, onAdd: addCategory, onUpdate: updateCategory, onRemove: removeCategory, showToast: showToast })), activeTab === 'noticias' && (_jsxs("div", { className: "admin__section", children: [_jsxs("div", { style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }, children: [_jsxs("div", { children: [_jsx("h2", { className: "admin__section-title", children: "\uD83D\uDCF0 Not\u00EDcias" }), _jsx("p", { className: "admin__section-desc", children: "Not\u00EDcias e atualiza\u00E7\u00F5es exibidas no site." })] }), _jsx("button", { className: "btn btn-primary", onClick: () => {
+                                                })()] })), activeTab === 'categorias' && (_jsx(CategoryManager, { categories: content.categories, onAdd: addCategory, onUpdate: updateCategory, onRemove: removeCategory, showToast: showToast })), activeTab === 'noticias' && (_jsxs("div", { className: "admin__section", children: [_jsxs("div", { style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }, children: [_jsxs("div", { children: [_jsx("h2", { className: "admin__section-title", children: "\uD83D\uDCF0 Not\u00EDcias" }), _jsxs("p", { className: "admin__section-desc", children: ["Edite as not\u00EDcias e clique em ", _jsx("strong", { children: "Publicar" }), " para atualizar o site."] })] }), _jsx("button", { className: "btn btn-primary", onClick: () => {
                                                                 setEditingNews(null);
                                                                 setNewsForm(defaultNewsForm());
                                                                 setNewsMsg(null);
                                                                 setShowNewsModal(true);
-                                                            }, children: "+ Nova Not\u00EDcia" })] }), news.length === 0 ? (_jsxs("div", { style: { textAlign: 'center', padding: '3rem', color: 'var(--gray-400)' }, children: [_jsx("div", { style: { fontSize: 48, marginBottom: 12 }, children: "\uD83D\uDCF0" }), _jsx("p", { children: "Nenhuma not\u00EDcia cadastrada ainda." })] })) : (_jsx("div", { style: { display: 'flex', flexDirection: 'column', gap: 12 }, children: news.map((n) => (_jsxs("div", { style: {
+                                                            }, children: "+ Nova Not\u00EDcia" })] }), newsHasDraft && (_jsxs("div", { style: {
+                                                        background: 'rgba(234,88,12,0.1)', border: '1px solid rgba(234,88,12,0.3)',
+                                                        borderRadius: 'var(--radius-md)', padding: '10px 14px', marginBottom: 12,
+                                                        fontSize: 13, color: '#ea580c', fontWeight: 600,
+                                                    }, children: ["\u26A0 H\u00E1 altera\u00E7\u00F5es n\u00E3o publicadas. Clique em ", _jsx("strong", { children: "Publicar" }), " para salvar no site."] })), newsDraft.length === 0 ? (_jsxs("div", { style: { textAlign: 'center', padding: '3rem', color: 'var(--gray-400)' }, children: [_jsx("div", { style: { fontSize: 48, marginBottom: 12 }, children: "\uD83D\uDCF0" }), _jsx("p", { children: "Nenhuma not\u00EDcia cadastrada ainda." })] })) : (_jsx("div", { style: { display: 'flex', flexDirection: 'column', gap: 12 }, children: newsDraft.map((n) => (_jsxs("div", { style: {
                                                             background: n.active ? 'var(--white)' : 'rgba(0,0,0,0.03)',
                                                             border: '1px solid var(--border-gray)',
                                                             borderLeft: `4px solid ${n.active ? 'var(--gold)' : 'var(--border-gray)'}`,
@@ -492,22 +634,24 @@ export default function AdminHome() {
                                                                             setNewsForm({ title: n.title, summary: n.summary, content: n.content, image_url: n.image_url, extra_images: Array.isArray(n.extra_images) ? n.extra_images : [], author: n.author, category: n.category, active: n.active, sort_order: n.sort_order, published_at: n.published_at.split('T')[0] });
                                                                             setNewsMsg(null);
                                                                             setShowNewsModal(true);
-                                                                        }, children: "\u270F Editar" }), _jsx("button", { className: "btn", style: { fontSize: 12, padding: '6px 12px', background: n.active ? 'rgba(220,38,38,0.08)' : 'rgba(22,163,74,0.08)', color: n.active ? 'var(--danger)' : 'var(--success)', border: 'none' }, onClick: async () => {
-                                                                            await updateNews(n.id, { active: !n.active });
-                                                                            setNews(prev => prev.map(x => x.id === n.id ? { ...x, active: !n.active } : x));
-                                                                            showToast(n.active ? 'Notícia inativada' : 'Notícia ativada');
-                                                                        }, children: n.active ? '🚫 Inativar' : '✓ Ativar' }), _jsx("button", { className: "btn btn-danger", style: { fontSize: 12, padding: '6px 12px' }, onClick: async () => {
+                                                                        }, children: "\u270F Editar" }), _jsx("button", { className: "btn", style: { fontSize: 12, padding: '6px 12px', background: n.active ? 'rgba(220,38,38,0.08)' : 'rgba(22,163,74,0.08)', color: n.active ? 'var(--danger)' : 'var(--success)', border: 'none' }, onClick: () => {
+                                                                            setNewsDraft(prev => prev.map(x => x.id === n.id ? { ...x, active: !n.active } : x));
+                                                                            setNewsHasDraft(true);
+                                                                        }, children: n.active ? '🚫 Inativar' : '✓ Ativar' }), _jsx("button", { className: "btn btn-danger", style: { fontSize: 12, padding: '6px 12px' }, onClick: () => {
                                                                             if (!confirm(`Excluir "${n.title}"?`))
                                                                                 return;
-                                                                            await deleteNews(n.id);
-                                                                            setNews(prev => prev.filter(x => x.id !== n.id));
-                                                                            showToast('Notícia excluída');
-                                                                        }, children: "\uD83D\uDDD1" })] })] }, n.id))) }))] })), activeTab === 'calibracao' && (_jsxs("div", { className: "admin__section", children: [_jsxs("div", { style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }, children: [_jsxs("div", { children: [_jsx("h2", { className: "admin__section-title", children: "\uD83D\uDCCA Tabelas de Calibra\u00E7\u00E3o" }), _jsx("p", { className: "admin__section-desc", children: "Tabelas t\u00E9cnicas exibidas na p\u00E1gina de Calibra\u00E7\u00E3o." })] }), _jsx("button", { className: "btn btn-primary", onClick: () => {
+                                                                            setNewsDraft(prev => prev.filter(x => x.id !== n.id));
+                                                                            setNewsHasDraft(true);
+                                                                        }, children: "\uD83D\uDDD1" })] })] }, n.id))) }))] })), activeTab === 'calibracao' && (_jsxs("div", { className: "admin__section", children: [_jsxs("div", { style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }, children: [_jsxs("div", { children: [_jsx("h2", { className: "admin__section-title", children: "\uD83D\uDCCA Tabelas de Calibra\u00E7\u00E3o" }), _jsxs("p", { className: "admin__section-desc", children: ["Edite as tabelas e clique em ", _jsx("strong", { children: "Publicar" }), " para atualizar o site."] })] }), _jsx("button", { className: "btn btn-primary", onClick: () => {
                                                                 setEditingCalib(null);
                                                                 setCalibForm(defaultCalibForm());
                                                                 setCalibMsg(null);
                                                                 setShowCalibModal(true);
-                                                            }, children: "+ Nova Tabela" })] }), calibTables.length === 0 ? (_jsxs("div", { style: { textAlign: 'center', padding: '3rem', color: 'var(--gray-400)' }, children: [_jsx("div", { style: { fontSize: 48, marginBottom: 12 }, children: "\uD83D\uDCCA" }), _jsx("p", { children: "Nenhuma tabela cadastrada ainda." })] })) : (_jsx("div", { style: { display: 'flex', flexDirection: 'column', gap: 12 }, children: calibTables.map((t) => (_jsxs("div", { style: {
+                                                            }, children: "+ Nova Tabela" })] }), calibHasDraft && (_jsxs("div", { style: {
+                                                        background: 'rgba(234,88,12,0.1)', border: '1px solid rgba(234,88,12,0.3)',
+                                                        borderRadius: 'var(--radius-md)', padding: '10px 14px', marginBottom: 12,
+                                                        fontSize: 13, color: '#ea580c', fontWeight: 600,
+                                                    }, children: ["\u26A0 H\u00E1 altera\u00E7\u00F5es n\u00E3o publicadas. Clique em ", _jsx("strong", { children: "Publicar" }), " para salvar no site."] })), calibDraft.length === 0 ? (_jsxs("div", { style: { textAlign: 'center', padding: '3rem', color: 'var(--gray-400)' }, children: [_jsx("div", { style: { fontSize: 48, marginBottom: 12 }, children: "\uD83D\uDCCA" }), _jsx("p", { children: "Nenhuma tabela cadastrada ainda." })] })) : (_jsx("div", { style: { display: 'flex', flexDirection: 'column', gap: 12 }, children: calibDraft.map((t) => (_jsxs("div", { style: {
                                                             background: t.active ? 'var(--white)' : 'rgba(0,0,0,0.03)',
                                                             border: '1px solid var(--border-gray)',
                                                             borderLeft: `4px solid ${t.active ? 'var(--gold)' : 'var(--border-gray)'}`,
@@ -519,27 +663,29 @@ export default function AdminHome() {
                                                                                     color: t.active ? 'var(--success)' : 'var(--gray-400)',
                                                                                 }, children: t.active ? 'Ativa' : 'Inativa' })] }), t.description && _jsx("p", { style: { fontSize: 12, color: 'var(--gray-400)', marginBottom: 4 }, children: t.description }), _jsxs("p", { style: { fontSize: 11, color: 'var(--gray-400)' }, children: [t.columns.length, " colunas \u00B7 ", t.rows.length, " linhas"] })] }), _jsxs("div", { style: { display: 'flex', gap: 8, flexShrink: 0 }, children: [_jsx("button", { className: "btn btn-outline", style: { fontSize: 12, padding: '6px 12px' }, onClick: () => {
                                                                             setEditingCalib(t);
-                                                                            setCalibForm({ title: t.title, description: t.description, columns: [...t.columns], rows: t.rows.map(r => [...r]), active: t.active, sort_order: t.sort_order });
+                                                                            setCalibForm({ title: t.title, description: t.description, columns: [...t.columns], row_headers: [...(t.row_headers ?? [])], rows: t.rows.map(r => [...r]), active: t.active, sort_order: t.sort_order });
                                                                             setCalibMsg(null);
                                                                             setShowCalibModal(true);
-                                                                        }, children: "\u270F Editar" }), _jsx("button", { className: "btn", style: { fontSize: 12, padding: '6px 12px', background: t.active ? 'rgba(220,38,38,0.08)' : 'rgba(22,163,74,0.08)', color: t.active ? 'var(--danger)' : 'var(--success)', border: 'none' }, onClick: async () => {
-                                                                            await updateCalibrationTable(t.id, { active: !t.active });
-                                                                            setCalibTables(prev => prev.map(x => x.id === t.id ? { ...x, active: !t.active } : x));
-                                                                            showToast(t.active ? 'Tabela inativada' : 'Tabela ativada');
-                                                                        }, children: t.active ? '🚫 Inativar' : '✓ Ativar' }), _jsx("button", { className: "btn btn-danger", style: { fontSize: 12, padding: '6px 12px' }, onClick: async () => {
+                                                                        }, children: "\u270F Editar" }), _jsx("button", { className: "btn", style: { fontSize: 12, padding: '6px 12px', background: t.active ? 'rgba(220,38,38,0.08)' : 'rgba(22,163,74,0.08)', color: t.active ? 'var(--danger)' : 'var(--success)', border: 'none' }, onClick: () => {
+                                                                            setCalibDraft(prev => prev.map(x => x.id === t.id ? { ...x, active: !t.active } : x));
+                                                                            setCalibHasDraft(true);
+                                                                        }, children: t.active ? '🚫 Inativar' : '✓ Ativar' }), _jsx("button", { className: "btn btn-danger", style: { fontSize: 12, padding: '6px 12px' }, onClick: () => {
                                                                             if (!confirm(`Excluir "${t.title}"?`))
                                                                                 return;
-                                                                            await deleteCalibrationTable(t.id);
-                                                                            setCalibTables(prev => prev.filter(x => x.id !== t.id));
-                                                                            showToast('Tabela excluída');
-                                                                        }, children: "\uD83D\uDDD1" })] })] }, t.id))) }))] })), activeTab === 'contatos' && (_jsxs("div", { className: "admin__section", children: [_jsxs("div", { style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }, children: [_jsxs("div", { children: [_jsx("h2", { className: "admin__section-title", children: "\uD83D\uDCDE Contatos" }), _jsx("p", { className: "admin__section-desc", children: "Contatos exibidos no rodap\u00E9 do site." })] }), _jsx("button", { className: "btn btn-primary", onClick: () => {
+                                                                            setCalibDraft(prev => prev.filter(x => x.id !== t.id));
+                                                                            setCalibHasDraft(true);
+                                                                        }, children: "\uD83D\uDDD1" })] })] }, t.id))) }))] })), activeTab === 'contatos' && (_jsxs("div", { className: "admin__section", children: [_jsxs("div", { style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }, children: [_jsxs("div", { children: [_jsx("h2", { className: "admin__section-title", children: "\uD83D\uDCDE Contatos" }), _jsxs("p", { className: "admin__section-desc", children: ["Edite os contatos e clique em ", _jsx("strong", { children: "Publicar" }), " para atualizar o site."] })] }), _jsx("button", { className: "btn btn-primary", onClick: () => {
                                                                 setEditingContact(null);
-                                                                setContactForm({ name: '', role: '', email: '', phone: '', mobile: '', address: '', active: true, sort_order: contacts.length });
+                                                                setContactForm({ name: '', role: '', email: '', phone: '', mobile: '', address: '', active: true, sort_order: contactsDraft.length });
                                                                 setContactMsg(null);
                                                                 setShowContactModal(true);
-                                                            }, children: "+ Novo Contato" })] }), contacts.length === 0 ? (_jsxs("div", { style: { textAlign: 'center', padding: '3rem', color: 'var(--gray-400)' }, children: [_jsx("div", { style: { fontSize: 48, marginBottom: 12 }, children: "\uD83D\uDCDE" }), _jsx("p", { children: "Nenhum contato cadastrado ainda." }), _jsx("p", { style: { fontSize: 13 }, children: "Clique em \"+ Novo Contato\" para adicionar." })] })) : (_jsx("div", { style: { display: 'flex', flexDirection: 'column', gap: 12 }, children: contacts.map((c) => (_jsxs("div", { style: {
+                                                            }, children: "+ Novo Contato" })] }), contactsHasDraft && (_jsxs("div", { style: {
+                                                        background: 'rgba(234,88,12,0.1)', border: '1px solid rgba(234,88,12,0.3)',
+                                                        borderRadius: 'var(--radius-md)', padding: '10px 14px', marginBottom: 12,
+                                                        fontSize: 13, color: '#ea580c', fontWeight: 600,
+                                                    }, children: ["\u26A0 H\u00E1 altera\u00E7\u00F5es n\u00E3o publicadas. Clique em ", _jsx("strong", { children: "Publicar" }), " para salvar no site."] })), contactsDraft.length === 0 ? (_jsxs("div", { style: { textAlign: 'center', padding: '3rem', color: 'var(--gray-400)' }, children: [_jsx("div", { style: { fontSize: 48, marginBottom: 12 }, children: "\uD83D\uDCDE" }), _jsx("p", { children: "Nenhum contato cadastrado ainda." }), _jsx("p", { style: { fontSize: 13 }, children: "Clique em \"+ Novo Contato\" para adicionar." })] })) : (_jsx("div", { style: { display: 'flex', flexDirection: 'column', gap: 12 }, children: contactsDraft.map((c) => (_jsxs("div", { style: {
                                                             background: c.active ? 'var(--white)' : 'rgba(0,0,0,0.03)',
-                                                            border: `1px solid ${c.active ? 'var(--border-gray)' : 'var(--border-gray)'}`,
+                                                            border: '1px solid var(--border-gray)',
                                                             borderRadius: 'var(--radius-md)', padding: '16px 20px',
                                                             display: 'flex', alignItems: 'center', gap: 16,
                                                             opacity: c.active ? 1 : 0.6,
@@ -548,7 +694,7 @@ export default function AdminHome() {
                                                                     background: 'var(--navy)', color: 'white',
                                                                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                                                                     fontWeight: 800, fontSize: 16, flexShrink: 0,
-                                                                }, children: c.name.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase() }), _jsxs("div", { style: { flex: 1, minWidth: 0 }, children: [_jsxs("div", { style: { display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }, children: [_jsx("span", { style: { fontWeight: 700, color: 'var(--navy)', fontSize: 14 }, children: c.name }), c.role && _jsx("span", { style: { fontSize: 12, color: 'var(--gray-400)' }, children: c.role }), _jsx("span", { style: {
+                                                                }, children: c.name.split(' ').slice(0, 2).map((w) => w[0]).join('').toUpperCase() }), _jsxs("div", { style: { flex: 1, minWidth: 0 }, children: [_jsxs("div", { style: { display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }, children: [_jsx("span", { style: { fontWeight: 700, color: 'var(--navy)', fontSize: 14 }, children: c.name }), c.role && _jsx("span", { style: { fontSize: 12, color: 'var(--gray-400)' }, children: c.role }), _jsx("span", { style: {
                                                                                     fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 20,
                                                                                     background: c.active ? 'var(--success-bg)' : 'rgba(0,0,0,0.06)',
                                                                                     color: c.active ? 'var(--success)' : 'var(--gray-400)',
@@ -557,41 +703,45 @@ export default function AdminHome() {
                                                                             setContactForm({ name: c.name, role: c.role, email: c.email, phone: c.phone, mobile: c.mobile, address: c.address, active: c.active, sort_order: c.sort_order });
                                                                             setContactMsg(null);
                                                                             setShowContactModal(true);
-                                                                        }, children: "\u270F Editar" }), _jsx("button", { className: "btn", style: { fontSize: 12, padding: '6px 12px', background: c.active ? 'rgba(220,38,38,0.08)' : 'rgba(22,163,74,0.08)', color: c.active ? 'var(--danger)' : 'var(--success)', border: 'none' }, onClick: async () => {
-                                                                            await updateContact(c.id, { active: !c.active });
-                                                                            setContacts(prev => prev.map(x => x.id === c.id ? { ...x, active: !c.active } : x));
-                                                                            showToast(c.active ? 'Contato inativado' : 'Contato ativado');
-                                                                        }, children: c.active ? '🚫 Inativar' : '✓ Ativar' }), _jsx("button", { className: "btn btn-danger", style: { fontSize: 12, padding: '6px 12px' }, onClick: async () => {
+                                                                        }, children: "\u270F Editar" }), _jsx("button", { className: "btn", style: { fontSize: 12, padding: '6px 12px', background: c.active ? 'rgba(220,38,38,0.08)' : 'rgba(22,163,74,0.08)', color: c.active ? 'var(--danger)' : 'var(--success)', border: 'none' }, onClick: () => {
+                                                                            setContactsDraft(prev => prev.map(x => x.id === c.id ? { ...x, active: !c.active } : x));
+                                                                            setContactsHasDraft(true);
+                                                                        }, children: c.active ? '🚫 Inativar' : '✓ Ativar' }), _jsx("button", { className: "btn btn-danger", style: { fontSize: 12, padding: '6px 12px' }, onClick: () => {
                                                                             if (!confirm(`Excluir "${c.name}"?`))
                                                                                 return;
-                                                                            await deleteContact(c.id);
-                                                                            setContacts(prev => prev.filter(x => x.id !== c.id));
-                                                                            showToast('Contato excluído');
-                                                                        }, children: "\uD83D\uDDD1" })] })] }, c.id))) }))] })), activeTab === 'empresa' && (_jsxs("div", { className: "admin__section", children: [_jsx("h2", { className: "admin__section-title", children: "\uD83C\uDFE2 Configura\u00E7\u00F5es da Empresa" }), _jsx("p", { className: "admin__section-desc", style: { marginBottom: '1.5rem' }, children: "Essas informa\u00E7\u00F5es s\u00E3o exibidas na aba do navegador, no navbar e em todo o site." }), _jsxs("div", { className: "admin__field", children: [_jsx("label", { className: "form-label", children: "Nome da Empresa" }), _jsx("input", { className: "form-input", placeholder: "Ex: AeroTech Brasil", value: company.name, onChange: e => setCompany(prev => ({ ...prev, name: e.target.value })) }), _jsx("p", { className: "admin__hint", children: "Aparece na aba do navegador, navbar e rodap\u00E9." })] }), _jsxs("div", { className: "admin__field", style: { marginTop: '1rem' }, children: [_jsx("label", { className: "form-label", children: "Descri\u00E7\u00E3o (Rodap\u00E9)" }), _jsx("textarea", { className: "form-input", rows: 3, placeholder: "Ex: Refer\u00EAncia nacional em avia\u00E7\u00E3o agr\u00EDcola desde 2005...", value: company.description ?? '', onChange: e => setCompany(prev => ({ ...prev, description: e.target.value })), style: { resize: 'vertical' } }), _jsx("p", { className: "admin__hint", children: "Texto exibido abaixo do logo no rodap\u00E9 do site." })] }), _jsxs("div", { className: "admin__field", style: { marginTop: '1rem' }, children: [_jsx("label", { className: "form-label", children: "CNPJ" }), _jsx("input", { className: "form-input", placeholder: "Ex: CNPJ: 12.345.678/0001-90 \u00B7 Palotina, Paran\u00E1 \u2014 Brasil", value: company.cnpj ?? '', onChange: e => setCompany(prev => ({ ...prev, cnpj: e.target.value })) }), _jsx("p", { className: "admin__hint", children: "Exibido no rodap\u00E9 inferior do site. Deixe em branco para ocultar." })] }), _jsxs("div", { className: "admin__field", style: { marginTop: '1.25rem' }, children: [_jsx("label", { className: "form-label", children: "\u00CDcone / Logo" }), _jsxs("div", { style: { display: 'flex', alignItems: 'center', gap: 16, marginBottom: 12 }, children: [_jsx("div", { style: {
+                                                                            setContactsDraft(prev => prev.filter(x => x.id !== c.id));
+                                                                            setContactsHasDraft(true);
+                                                                        }, children: "\uD83D\uDDD1" })] })] }, c.id))) }))] })), activeTab === 'empresa' && (_jsxs("div", { className: "admin__section", children: [_jsx("h2", { className: "admin__section-title", children: "\uD83C\uDFE2 Configura\u00E7\u00F5es da Empresa" }), _jsx("p", { className: "admin__section-desc", style: { marginBottom: '1rem' }, children: "Essas informa\u00E7\u00F5es s\u00E3o exibidas na aba do navegador, no navbar e em todo o site." }), companyHasDraft && (_jsxs("div", { style: {
+                                                        background: 'rgba(234,88,12,0.1)', border: '1px solid rgba(234,88,12,0.3)',
+                                                        borderRadius: 'var(--radius-md)', padding: '10px 14px', marginBottom: '1rem',
+                                                        fontSize: 13, color: '#ea580c', fontWeight: 600,
+                                                    }, children: ["\u26A0 H\u00E1 altera\u00E7\u00F5es n\u00E3o publicadas. Clique em ", _jsx("strong", { children: "Publicar" }), " para salvar no site."] })), _jsxs("div", { className: "admin__field", children: [_jsx("label", { className: "form-label", children: "Nome da Empresa" }), _jsx("input", { className: "form-input", placeholder: "Ex: AeroTech Brasil", value: companyDraft.name, onChange: e => { setCompanyDraft(prev => ({ ...prev, name: e.target.value })); setCompanyHasDraft(true); } }), _jsx("p", { className: "admin__hint", children: "Aparece na aba do navegador, navbar e rodap\u00E9." })] }), _jsxs("div", { className: "admin__field", style: { marginTop: '1rem' }, children: [_jsx("label", { className: "form-label", children: "Descri\u00E7\u00E3o (Rodap\u00E9)" }), _jsx("textarea", { className: "form-input", rows: 3, placeholder: "Ex: Refer\u00EAncia nacional em avia\u00E7\u00E3o agr\u00EDcola desde 2005...", value: companyDraft.description ?? '', onChange: e => { setCompanyDraft(prev => ({ ...prev, description: e.target.value })); setCompanyHasDraft(true); }, style: { resize: 'vertical' } }), _jsx("p", { className: "admin__hint", children: "Texto exibido abaixo do logo no rodap\u00E9 do site." })] }), _jsxs("div", { className: "admin__field", style: { marginTop: '1rem' }, children: [_jsx("label", { className: "form-label", children: "CNPJ" }), _jsx("input", { className: "form-input", placeholder: "Ex: CNPJ: 12.345.678/0001-90 \u00B7 Palotina, Paran\u00E1 \u2014 Brasil", value: companyDraft.cnpj ?? '', onChange: e => { setCompanyDraft(prev => ({ ...prev, cnpj: e.target.value })); setCompanyHasDraft(true); } }), _jsx("p", { className: "admin__hint", children: "Exibido no rodap\u00E9 inferior do site. Deixe em branco para ocultar." })] }), _jsxs("div", { className: "admin__field", style: { marginTop: '1.25rem' }, children: [_jsx("label", { className: "form-label", children: "\u00CDcone / Logo" }), _jsxs("div", { style: { display: 'flex', alignItems: 'center', gap: 16, marginBottom: 12 }, children: [_jsx("div", { style: {
                                                                         width: 64, height: 64, borderRadius: 12,
-                                                                        background: company.icon_url ? '#f5f5f5' : 'var(--gold)',
+                                                                        background: companyDraft.icon_url ? '#f5f5f5' : 'var(--gold)',
                                                                         display: 'flex', alignItems: 'center', justifyContent: 'center',
                                                                         border: '1px solid var(--border-gray)', overflow: 'hidden', flexShrink: 0,
-                                                                    }, children: company.icon_url
-                                                                        ? _jsx("img", { src: company.icon_url, alt: "\u00EDcone", style: { width: '100%', height: '100%', objectFit: 'contain', padding: 6 } })
-                                                                        : _jsx("span", { style: { fontSize: 22, fontWeight: 900, color: 'var(--navy)' }, children: (company.name || 'AT').slice(0, 2).toUpperCase() }) }), _jsxs("div", { children: [_jsx("input", { ref: companyIconRef, type: "file", accept: "image/*", style: { display: 'none' }, onChange: e => {
+                                                                    }, children: companyDraft.icon_url
+                                                                        ? _jsx("img", { src: companyDraft.icon_url, alt: "\u00EDcone", style: { width: '100%', height: '100%', objectFit: 'contain', padding: 6 } })
+                                                                        : _jsx("span", { style: { fontSize: 22, fontWeight: 900, color: 'var(--navy)' }, children: (companyDraft.name || 'AT').slice(0, 2).toUpperCase() }) }), _jsxs("div", { children: [_jsx("input", { ref: companyIconRef, type: "file", accept: "image/*", style: { display: 'none' }, onChange: e => {
                                                                                 const file = e.target.files?.[0];
                                                                                 if (!file)
                                                                                     return;
                                                                                 const reader = new FileReader();
-                                                                                reader.onload = ev => setCompany(prev => ({ ...prev, icon_url: ev.target?.result }));
+                                                                                reader.onload = ev => { setCompanyDraft(prev => ({ ...prev, icon_url: ev.target?.result })); setCompanyHasDraft(true); };
                                                                                 reader.readAsDataURL(file);
                                                                                 e.target.value = '';
-                                                                            } }), _jsx("button", { className: "btn admin__upload-btn", onClick: () => companyIconRef.current?.click(), children: "\uD83D\uDCC1 Carregar imagem" }), company.icon_url && (_jsx("button", { className: "btn btn-danger", style: { fontSize: '12px', padding: '6px 12px', marginLeft: 8 }, onClick: () => setCompany(prev => ({ ...prev, icon_url: '' })), children: "\uD83D\uDDD1 Remover" }))] })] }), _jsx("input", { className: "form-input", placeholder: "Ou cole a URL do \u00EDcone...", value: company.icon_url?.startsWith('data:') ? '' : (company.icon_url ?? ''), onChange: e => setCompany(prev => ({ ...prev, icon_url: e.target.value })) }), _jsx("p", { className: "admin__hint", children: "Recomendado: PNG ou SVG quadrado (ex: 512\u00D7512px). Aparece na aba do navegador e no navbar." })] }), _jsxs("div", { className: "admin__field", style: { marginTop: '1.5rem' }, children: [_jsx("label", { className: "form-label", children: "\uD83C\uDFA8 Cores da Empresa" }), _jsx("p", { className: "admin__section-desc", style: { marginBottom: '1rem' }, children: "Aplicadas em todo o site: navbar, footer, bot\u00F5es, destaques e painel administrativo." }), _jsxs("div", { className: "admin-color-grid", children: [_jsxs("div", { className: "admin-color-item", children: [_jsx("div", { className: "admin-color-preview", style: { background: company.color_primary || '#0a1628' } }), _jsxs("div", { className: "admin-color-info", children: [_jsx("span", { className: "admin-color-label", children: "Cor Principal" }), _jsx("span", { className: "admin-color-desc", children: "Navbar, footer, fundos escuros" })] }), _jsx("input", { type: "color", className: "admin-color-picker", value: company.color_primary || '#0a1628', onChange: e => {
+                                                                            } }), _jsx("button", { className: "btn admin__upload-btn", onClick: () => companyIconRef.current?.click(), children: "\uD83D\uDCC1 Carregar imagem" }), companyDraft.icon_url && (_jsx("button", { className: "btn btn-danger", style: { fontSize: '12px', padding: '6px 12px', marginLeft: 8 }, onClick: () => { setCompanyDraft(prev => ({ ...prev, icon_url: '' })); setCompanyHasDraft(true); }, children: "\uD83D\uDDD1 Remover" }))] })] }), _jsx("input", { className: "form-input", placeholder: "Ou cole a URL do \u00EDcone...", value: companyDraft.icon_url?.startsWith('data:') ? '' : (companyDraft.icon_url ?? ''), onChange: e => { setCompanyDraft(prev => ({ ...prev, icon_url: e.target.value })); setCompanyHasDraft(true); } }), _jsx("p", { className: "admin__hint", children: "Recomendado: PNG ou SVG quadrado (ex: 512\u00D7512px). Aparece na aba do navegador e no navbar." })] }), _jsxs("div", { className: "admin__field", style: { marginTop: '1.5rem' }, children: [_jsx("label", { className: "form-label", children: "\uD83C\uDFA8 Cores da Empresa" }), _jsx("p", { className: "admin__section-desc", style: { marginBottom: '1rem' }, children: "Aplicadas em todo o site: navbar, footer, bot\u00F5es, destaques e painel administrativo." }), _jsxs("div", { className: "admin-color-grid", children: [_jsxs("div", { className: "admin-color-item", children: [_jsx("div", { className: "admin-color-preview", style: { background: companyDraft.color_primary || '#0a1628' } }), _jsxs("div", { className: "admin-color-info", children: [_jsx("span", { className: "admin-color-label", children: "Cor Principal" }), _jsx("span", { className: "admin-color-desc", children: "Navbar, footer, fundos escuros" })] }), _jsx("input", { type: "color", className: "admin-color-picker", value: companyDraft.color_primary || '#0a1628', onChange: e => {
                                                                                 const updated = { ...company, color_primary: e.target.value };
-                                                                                setCompany(updated);
+                                                                                setCompanyDraft(updated);
                                                                                 applyCompanyColors(updated);
-                                                                            } })] }), _jsxs("div", { className: "admin-color-item", children: [_jsx("div", { className: "admin-color-preview", style: { background: company.color_secondary || '#c8972a' } }), _jsxs("div", { className: "admin-color-info", children: [_jsx("span", { className: "admin-color-label", children: "Cor de Destaque" }), _jsx("span", { className: "admin-color-desc", children: "Bot\u00F5es, bordas ativas, textos em evid\u00EAncia" })] }), _jsx("input", { type: "color", className: "admin-color-picker", value: company.color_secondary || '#c8972a', onChange: e => {
+                                                                                setCompanyHasDraft(true);
+                                                                            } })] }), _jsxs("div", { className: "admin-color-item", children: [_jsx("div", { className: "admin-color-preview", style: { background: companyDraft.color_secondary || '#c8972a' } }), _jsxs("div", { className: "admin-color-info", children: [_jsx("span", { className: "admin-color-label", children: "Cor de Destaque" }), _jsx("span", { className: "admin-color-desc", children: "Bot\u00F5es, bordas ativas, textos em evid\u00EAncia" })] }), _jsx("input", { type: "color", className: "admin-color-picker", value: companyDraft.color_secondary || '#c8972a', onChange: e => {
                                                                                 const updated = { ...company, color_secondary: e.target.value };
-                                                                                setCompany(updated);
+                                                                                setCompanyDraft(updated);
                                                                                 applyCompanyColors(updated);
+                                                                                setCompanyHasDraft(true);
                                                                             } })] })] }), _jsxs("div", { className: "admin-color-preview-bar", style: { marginTop: 16 }, children: [_jsxs("div", { style: {
-                                                                        background: company.color_primary || '#0a1628',
+                                                                        background: companyDraft.color_primary || '#0a1628',
                                                                         padding: '14px 20px',
                                                                         borderRadius: 'var(--radius-md) var(--radius-md) 0 0',
                                                                         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
@@ -600,21 +750,22 @@ export default function AdminHome() {
                                                                         borderRadius: '0 0 var(--radius-md) var(--radius-md)',
                                                                         display: 'flex', gap: 10, alignItems: 'center',
                                                                     }, children: [_jsx("div", { style: {
-                                                                                background: company.color_secondary || '#c8972a',
-                                                                                color: company.color_primary || '#0a1628',
+                                                                                background: companyDraft.color_secondary || '#c8972a',
+                                                                                color: companyDraft.color_primary || '#0a1628',
                                                                                 padding: '6px 16px', borderRadius: 20,
                                                                                 fontSize: 12, fontWeight: 800,
-                                                                            }, children: "Bot\u00E3o" }), _jsx("span", { style: { color: company.color_secondary || '#c8972a', fontSize: 13, fontWeight: 700 }, children: "Texto em destaque" })] })] }), _jsx("button", { className: "btn btn-outline", style: { marginTop: 12, fontSize: 12 }, onClick: () => {
+                                                                            }, children: "Bot\u00E3o" }), _jsx("span", { style: { color: companyDraft.color_secondary || '#c8972a', fontSize: 13, fontWeight: 700 }, children: "Texto em destaque" })] })] }), _jsx("button", { className: "btn btn-outline", style: { marginTop: 12, fontSize: 12 }, onClick: () => {
                                                                 const reset = { ...company, color_primary: '#0a1628', color_secondary: '#c8972a' };
-                                                                setCompany(reset);
+                                                                setCompanyDraft(reset);
                                                                 applyCompanyColors(reset);
+                                                                setCompanyHasDraft(false);
                                                             }, children: "\u21BA Restaurar cores padr\u00E3o" })] }), companyMsg && (_jsxs("div", { style: {
                                                         padding: '10px 14px', borderRadius: 8, fontSize: 13, marginTop: 16,
                                                         background: companyMsg.type === 'success' ? 'var(--success-bg)' : 'var(--danger-bg)',
                                                         color: companyMsg.type === 'success' ? 'var(--success)' : 'var(--danger)',
                                                         border: `1px solid ${companyMsg.type === 'success' ? '#86efac' : '#fca5a5'}`,
                                                     }, children: [companyMsg.type === 'success' ? '✓ ' : '✕ ', companyMsg.text] })), _jsx("button", { className: "btn btn-primary", style: { marginTop: '1.5rem' }, disabled: companySaving, onClick: async () => {
-                                                        if (!company.name.trim()) {
+                                                        if (!companyDraft.name.trim()) {
                                                             setCompanyMsg({ type: 'error', text: 'O nome da empresa é obrigatório.' });
                                                             return;
                                                         }
@@ -624,7 +775,7 @@ export default function AdminHome() {
                                                             await saveCompanySettings(company);
                                                             setCompanyMsg({ type: 'success', text: 'Configurações salvas com sucesso!' });
                                                             // Atualiza title imediatamente e recarrega para refletir em toda a UI
-                                                            document.title = company.name;
+                                                            document.title = companyDraft.name;
                                                             setTimeout(() => window.location.reload(), 800);
                                                         }
                                                         catch {
@@ -636,6 +787,7 @@ export default function AdminHome() {
                                                     }, children: companySaving ? 'Salvando...' : '💾 Salvar' })] }))] }) })] })] }), showCalibModal && (() => {
                 const cols = calibForm.columns;
                 const rows = calibForm.rows;
+                const rowHeaders = calibForm.row_headers ?? [];
                 const setCol = (ci, val) => setCalibForm(p => { const c = [...p.columns]; c[ci] = val; return { ...p, columns: c }; });
                 const addCol = () => setCalibForm(p => ({
                     ...p,
@@ -647,19 +799,32 @@ export default function AdminHome() {
                     columns: p.columns.filter((_, i) => i !== ci),
                     rows: p.rows.map(r => r.filter((_, i) => i !== ci)),
                 }));
-                const addRow = () => setCalibForm(p => ({ ...p, rows: [...p.rows, Array(p.columns.length).fill('')] }));
-                const removeRow = (ri) => setCalibForm(p => ({ ...p, rows: p.rows.filter((_, i) => i !== ri) }));
+                const addRow = () => setCalibForm(p => ({
+                    ...p,
+                    row_headers: [...(p.row_headers ?? []), ''],
+                    rows: [...p.rows, Array(p.columns.length).fill('')],
+                }));
+                const removeRow = (ri) => setCalibForm(p => ({
+                    ...p,
+                    row_headers: (p.row_headers ?? []).filter((_, i) => i !== ri),
+                    rows: p.rows.filter((_, i) => i !== ri),
+                }));
                 const setCell = (ri, ci, val) => setCalibForm(p => {
                     const r = p.rows.map(row => [...row]);
                     r[ri][ci] = val;
                     return { ...p, rows: r };
                 });
-                return (_jsx("div", { className: "admin-prod-modal__overlay", onClick: () => setShowCalibModal(false), children: _jsxs("div", { className: "admin-prod-modal", style: { maxWidth: 780, width: '95vw' }, onClick: e => e.stopPropagation(), children: [_jsxs("div", { className: "admin-prod-modal__header", children: [_jsx("h2", { children: editingCalib ? '✏ Editar Tabela' : '+ Nova Tabela de Calibração' }), _jsx("button", { className: "produto-modal__close", style: { color: 'white', background: 'rgba(255,255,255,0.1)' }, onClick: () => setShowCalibModal(false), children: "\u2715" })] }), _jsxs("div", { className: "admin-prod-modal__body", style: { maxHeight: '70vh', overflowY: 'auto' }, children: [_jsxs("div", { style: { display: 'grid', gridTemplateColumns: '1fr', gap: 12, marginBottom: 20 }, children: [_jsxs("div", { className: "admin__field", children: [_jsxs("label", { className: "form-label", children: ["T\u00EDtulo ", _jsx("span", { style: { color: 'var(--danger)' }, children: "*" })] }), _jsx("input", { className: "form-input", placeholder: "Ex: Tabela de Calibra\u00E7\u00E3o de Alt\u00EDmetros", value: calibForm.title, onChange: e => setCalibForm(p => ({ ...p, title: e.target.value })) })] }), _jsxs("div", { className: "admin__field", children: [_jsx("label", { className: "form-label", children: "Descri\u00E7\u00E3o" }), _jsx("textarea", { className: "form-input", rows: 2, placeholder: "Descri\u00E7\u00E3o opcional da tabela...", value: calibForm.description, onChange: e => setCalibForm(p => ({ ...p, description: e.target.value })), style: { resize: 'vertical' } })] }), _jsxs("div", { style: { display: 'flex', alignItems: 'center', gap: 10 }, children: [_jsx("input", { type: "checkbox", id: "calib-active", checked: calibForm.active, onChange: e => setCalibForm(p => ({ ...p, active: e.target.checked })), style: { width: 18, height: 18, cursor: 'pointer' } }), _jsx("label", { htmlFor: "calib-active", style: { fontSize: 13, fontWeight: 600, cursor: 'pointer', color: 'var(--navy)' }, children: "Tabela ativa (vis\u00EDvel no site)" }), _jsx("input", { className: "form-input", type: "number", min: 0, value: calibForm.sort_order, onChange: e => setCalibForm(p => ({ ...p, sort_order: Number(e.target.value) })), style: { width: 80, marginLeft: 'auto' }, title: "Ordem de exibi\u00E7\u00E3o" }), _jsx("span", { style: { fontSize: 12, color: 'var(--gray-400)', whiteSpace: 'nowrap' }, children: "Ordem" })] })] }), _jsxs("div", { style: { marginBottom: 12 }, children: [_jsxs("div", { style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }, children: [_jsxs("label", { className: "form-label", style: { marginBottom: 0 }, children: ["Colunas (", cols.length, ")"] }), _jsx("button", { className: "btn btn-outline", style: { fontSize: 11, padding: '4px 10px' }, onClick: addCol, children: "+ Coluna" })] }), _jsx("div", { style: { display: 'flex', gap: 6, flexWrap: 'wrap' }, children: cols.map((col, ci) => (_jsxs("div", { style: { display: 'flex', alignItems: 'center', gap: 4, background: 'var(--bg-light)', borderRadius: 6, padding: '4px 6px', border: '1px solid var(--border-gray)' }, children: [_jsx("input", { style: { border: 'none', background: 'transparent', fontSize: 12, fontWeight: 700, color: 'var(--navy)', width: Math.max(60, col.length * 8), outline: 'none', fontFamily: 'inherit' }, value: col, onChange: e => setCol(ci, e.target.value) }), cols.length > 1 && (_jsx("button", { onClick: () => removeCol(ci), style: { background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', fontSize: 12, lineHeight: 1, padding: 0 }, children: "\u2715" }))] }, ci))) })] }), _jsxs("div", { children: [_jsxs("div", { style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }, children: [_jsxs("label", { className: "form-label", style: { marginBottom: 0 }, children: ["Linhas (", rows.length, ")"] }), _jsx("button", { className: "btn btn-outline", style: { fontSize: 11, padding: '4px 10px' }, onClick: addRow, children: "+ Linha" })] }), _jsx("div", { style: { overflowX: 'auto' }, children: _jsxs("table", { style: { width: '100%', borderCollapse: 'collapse', minWidth: cols.length * 120 }, children: [_jsx("thead", { children: _jsxs("tr", { style: { background: 'var(--navy)' }, children: [cols.map((col, ci) => (_jsx("th", { style: { padding: '8px 10px', color: 'white', fontSize: 11, fontWeight: 700, textAlign: 'left', whiteSpace: 'nowrap' }, children: col }, ci))), _jsx("th", { style: { width: 32 } })] }) }), _jsx("tbody", { children: rows.map((row, ri) => (_jsxs("tr", { style: { background: ri % 2 === 0 ? 'white' : 'var(--bg-light)' }, children: [cols.map((_, ci) => (_jsx("td", { style: { padding: '4px 6px', borderBottom: '1px solid var(--border-gray)' }, children: _jsx("input", { className: "form-input", style: { padding: '6px 8px', fontSize: 12, minWidth: 80 }, value: row[ci] ?? '', onChange: e => setCell(ri, ci, e.target.value), placeholder: "\u2014" }) }, ci))), _jsx("td", { style: { padding: '4px 6px', textAlign: 'center' }, children: rows.length > 1 && (_jsx("button", { onClick: () => removeRow(ri), style: { background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', fontSize: 14 }, children: "\uD83D\uDDD1" })) })] }, ri))) })] }) })] }), calibMsg && (_jsxs("div", { style: {
+                const setRowHeader = (ri, val) => setCalibForm(p => {
+                    const h = [...(p.row_headers ?? [])];
+                    h[ri] = val;
+                    return { ...p, row_headers: h };
+                });
+                return (_jsx("div", { className: "admin-prod-modal__overlay", onClick: () => setShowCalibModal(false), children: _jsxs("div", { className: "admin-prod-modal", style: { maxWidth: 820, width: '95vw' }, onClick: e => e.stopPropagation(), children: [_jsxs("div", { className: "admin-prod-modal__header", children: [_jsx("h2", { children: editingCalib ? '✏ Editar Tabela' : '+ Nova Tabela de Calibração' }), _jsx("button", { className: "produto-modal__close", style: { color: 'white', background: 'rgba(255,255,255,0.1)' }, onClick: () => setShowCalibModal(false), children: "\u2715" })] }), _jsxs("div", { className: "admin-prod-modal__body", style: { maxHeight: '70vh', overflowY: 'auto' }, children: [_jsxs("div", { style: { display: 'grid', gridTemplateColumns: '1fr', gap: 12, marginBottom: 20 }, children: [_jsxs("div", { className: "admin__field", children: [_jsxs("label", { className: "form-label", children: ["T\u00EDtulo ", _jsx("span", { style: { color: 'var(--danger)' }, children: "*" })] }), _jsx("input", { className: "form-input", placeholder: "Ex: Tabela de Calibra\u00E7\u00E3o de Alt\u00EDmetros", value: calibForm.title, onChange: e => setCalibForm(p => ({ ...p, title: e.target.value })) })] }), _jsxs("div", { className: "admin__field", children: [_jsx("label", { className: "form-label", children: "Descri\u00E7\u00E3o" }), _jsx("textarea", { className: "form-input", rows: 2, placeholder: "Descri\u00E7\u00E3o opcional...", value: calibForm.description, onChange: e => setCalibForm(p => ({ ...p, description: e.target.value })), style: { resize: 'vertical' } })] }), _jsxs("div", { style: { display: 'flex', alignItems: 'center', gap: 10 }, children: [_jsx("input", { type: "checkbox", id: "calib-active", checked: calibForm.active, onChange: e => setCalibForm(p => ({ ...p, active: e.target.checked })), style: { width: 18, height: 18, cursor: 'pointer' } }), _jsx("label", { htmlFor: "calib-active", style: { fontSize: 13, fontWeight: 600, cursor: 'pointer', color: 'var(--navy)' }, children: "Tabela ativa (vis\u00EDvel no site)" }), _jsx("input", { className: "form-input", type: "number", min: 0, value: calibForm.sort_order, onChange: e => setCalibForm(p => ({ ...p, sort_order: Number(e.target.value) })), style: { width: 80, marginLeft: 'auto' }, title: "Ordem de exibi\u00E7\u00E3o" }), _jsx("span", { style: { fontSize: 12, color: 'var(--gray-400)', whiteSpace: 'nowrap' }, children: "Ordem" })] })] }), _jsxs("div", { style: { marginBottom: 12 }, children: [_jsxs("div", { style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }, children: [_jsxs("label", { className: "form-label", style: { marginBottom: 0 }, children: ["Colunas de Dados (", cols.length, ")"] }), _jsx("button", { className: "btn btn-outline", style: { fontSize: 11, padding: '4px 10px' }, onClick: addCol, children: "+ Coluna" })] }), _jsx("div", { style: { display: 'flex', gap: 6, flexWrap: 'wrap' }, children: cols.map((col, ci) => (_jsxs("div", { style: { display: 'flex', alignItems: 'center', gap: 4, background: 'var(--bg-light)', borderRadius: 6, padding: '4px 6px', border: '1px solid var(--border-gray)' }, children: [_jsx("input", { style: { border: 'none', background: 'transparent', fontSize: 12, fontWeight: 700, color: 'var(--navy)', width: Math.max(60, col.length * 8), outline: 'none', fontFamily: 'inherit' }, value: col, onChange: e => setCol(ci, e.target.value) }), cols.length > 1 && (_jsx("button", { onClick: () => removeCol(ci), style: { background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', fontSize: 12, lineHeight: 1, padding: 0 }, children: "\u2715" }))] }, ci))) })] }), _jsxs("div", { children: [_jsxs("div", { style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }, children: [_jsxs("label", { className: "form-label", style: { marginBottom: 0 }, children: ["Linhas (", rows.length, ")"] }), _jsx("button", { className: "btn btn-outline", style: { fontSize: 11, padding: '4px 10px' }, onClick: addRow, children: "+ Linha" })] }), _jsx("div", { style: { overflowX: 'auto' }, children: _jsxs("table", { style: { width: '100%', borderCollapse: 'collapse', minWidth: (cols.length + 1) * 120 }, children: [_jsx("thead", { children: _jsxs("tr", { style: { background: 'var(--navy)' }, children: [_jsx("th", { style: { padding: '8px 10px', color: 'var(--gold)', fontSize: 11, fontWeight: 700, textAlign: 'left', whiteSpace: 'nowrap', minWidth: 120, borderRight: '2px solid rgba(200,151,42,0.4)' }, children: "T\u00EDtulo da Linha" }), cols.map((col, ci) => (_jsx("th", { style: { padding: '8px 10px', color: 'white', fontSize: 11, fontWeight: 700, textAlign: 'left', whiteSpace: 'nowrap' }, children: col }, ci))), _jsx("th", { style: { width: 32 } })] }) }), _jsx("tbody", { children: rows.map((row, ri) => (_jsxs("tr", { style: { background: ri % 2 === 0 ? 'white' : 'var(--bg-light)' }, children: [_jsx("td", { style: { padding: '4px 6px', borderBottom: '1px solid var(--border-gray)', borderRight: '2px solid var(--border-gray)' }, children: _jsx("input", { className: "form-input", style: { padding: '6px 8px', fontSize: 12, fontWeight: 600, minWidth: 100, background: 'rgba(200,151,42,0.06)' }, value: rowHeaders[ri] ?? '', onChange: e => setRowHeader(ri, e.target.value), placeholder: "T\u00EDtulo..." }) }), cols.map((_, ci) => (_jsx("td", { style: { padding: '4px 6px', borderBottom: '1px solid var(--border-gray)' }, children: _jsx("input", { className: "form-input", style: { padding: '6px 8px', fontSize: 12, minWidth: 80 }, value: row[ci] ?? '', onChange: e => setCell(ri, ci, e.target.value), placeholder: "\u2014" }) }, ci))), _jsx("td", { style: { padding: '4px 6px', textAlign: 'center' }, children: rows.length > 1 && (_jsx("button", { onClick: () => removeRow(ri), style: { background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', fontSize: 14 }, children: "\uD83D\uDDD1" })) })] }, ri))) })] }) })] }), calibMsg && (_jsxs("div", { style: {
                                             padding: '10px 14px', borderRadius: 8, fontSize: 13, marginTop: 12,
                                             background: calibMsg.type === 'success' ? 'var(--success-bg)' : 'var(--danger-bg)',
                                             color: calibMsg.type === 'success' ? 'var(--success)' : 'var(--danger)',
                                             border: `1px solid ${calibMsg.type === 'success' ? '#86efac' : '#fca5a5'}`,
-                                        }, children: [calibMsg.type === 'success' ? '✓ ' : '✕ ', calibMsg.text] }))] }), _jsxs("div", { className: "admin-prod-modal__footer", style: { gap: 10 }, children: [_jsx("button", { className: "btn btn-outline", onClick: () => setShowCalibModal(false), children: "Cancelar" }), _jsx("button", { className: "btn btn-primary", disabled: calibSaving, onClick: async () => {
+                                        }, children: [calibMsg.type === 'success' ? '✓ ' : '✕ ', calibMsg.text] }))] }), _jsxs("div", { className: "admin-prod-modal__footer", style: { gap: 10 }, children: [_jsx("button", { className: "btn btn-outline", onClick: () => setShowCalibModal(false), children: "Cancelar" }), _jsx("button", { className: "btn btn-primary", disabled: calibSaving, onClick: () => {
                                             if (!calibForm.title.trim()) {
                                                 setCalibMsg({ type: 'error', text: 'O título é obrigatório.' });
                                                 return;
@@ -668,39 +833,17 @@ export default function AdminHome() {
                                                 setCalibMsg({ type: 'error', text: 'Adicione ao menos uma coluna.' });
                                                 return;
                                             }
-                                            setCalibSaving(true);
-                                            setCalibMsg(null);
-                                            try {
-                                                if (editingCalib) {
-                                                    const ok = await updateCalibrationTable(editingCalib.id, calibForm);
-                                                    if (ok) {
-                                                        setCalibTables(prev => prev.map(x => x.id === editingCalib.id ? { ...x, ...calibForm } : x));
-                                                        setCalibMsg({ type: 'success', text: 'Tabela atualizada!' });
-                                                        setTimeout(() => setShowCalibModal(false), 800);
-                                                    }
-                                                    else {
-                                                        setCalibMsg({ type: 'error', text: 'Erro ao atualizar.' });
-                                                    }
-                                                }
-                                                else {
-                                                    const created = await saveCalibrationTable(calibForm);
-                                                    if (created) {
-                                                        setCalibTables(prev => [...prev, created]);
-                                                        setCalibMsg({ type: 'success', text: 'Tabela criada!' });
-                                                        setTimeout(() => setShowCalibModal(false), 800);
-                                                    }
-                                                    else {
-                                                        setCalibMsg({ type: 'error', text: 'Erro ao criar tabela.' });
-                                                    }
-                                                }
+                                            if (editingCalib) {
+                                                setCalibDraft(prev => prev.map(x => x.id === editingCalib.id ? { ...x, ...calibForm } : x));
                                             }
-                                            catch {
-                                                setCalibMsg({ type: 'error', text: 'Erro inesperado.' });
+                                            else {
+                                                const tempId = `temp_${Date.now()}`;
+                                                setCalibDraft(prev => [...prev, { id: tempId, ...calibForm }]);
                                             }
-                                            finally {
-                                                setCalibSaving(false);
-                                            }
-                                        }, children: calibSaving ? 'Salvando...' : '💾 Salvar' })] })] }) }));
+                                            setCalibHasDraft(true);
+                                            setCalibMsg({ type: 'success', text: editingCalib ? 'Tabela editada! Clique em Publicar para salvar.' : 'Tabela adicionada! Clique em Publicar para salvar.' });
+                                            setTimeout(() => setShowCalibModal(false), 800);
+                                        }, children: "\uD83D\uDCBE Salvar Rascunho" })] })] }) }));
             })(), showNewsModal && (_jsx("div", { className: "admin-prod-modal__overlay", onClick: () => setShowNewsModal(false), children: _jsxs("div", { className: "admin-prod-modal", style: { maxWidth: 580 }, onClick: e => e.stopPropagation(), children: [_jsxs("div", { className: "admin-prod-modal__header", children: [_jsx("h2", { children: editingNews ? '✏ Editar Notícia' : '+ Nova Notícia' }), _jsx("button", { className: "produto-modal__close", style: { color: 'white', background: 'rgba(255,255,255,0.1)' }, onClick: () => setShowNewsModal(false), children: "\u2715" })] }), _jsxs("div", { className: "admin-prod-modal__body", children: [_jsxs("div", { style: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }, children: [_jsxs("div", { className: "admin__field", style: { gridColumn: '1/-1' }, children: [_jsxs("label", { className: "form-label", children: ["T\u00EDtulo ", _jsx("span", { style: { color: 'var(--danger)' }, children: "*" })] }), _jsx("input", { className: "form-input", placeholder: "T\u00EDtulo da not\u00EDcia", value: newsForm.title, onChange: e => setNewsForm(p => ({ ...p, title: e.target.value })) })] }), _jsxs("div", { className: "admin__field", children: [_jsx("label", { className: "form-label", children: "Categoria" }), _jsx("input", { className: "form-input", placeholder: "Ex: Evento, Certifica\u00E7\u00E3o", value: newsForm.category, onChange: e => setNewsForm(p => ({ ...p, category: e.target.value })) })] }), _jsxs("div", { className: "admin__field", children: [_jsx("label", { className: "form-label", children: "Autor" }), _jsx("input", { className: "form-input", placeholder: "Ex: Reda\u00E7\u00E3o", value: newsForm.author, onChange: e => setNewsForm(p => ({ ...p, author: e.target.value })) })] }), _jsxs("div", { className: "admin__field", children: [_jsx("label", { className: "form-label", children: "Data de Publica\u00E7\u00E3o" }), _jsx("input", { className: "form-input", type: "date", value: newsForm.published_at?.split('T')[0] ?? '', onChange: e => setNewsForm(p => ({ ...p, published_at: e.target.value })) })] }), _jsxs("div", { className: "admin__field", children: [_jsx("label", { className: "form-label", children: "Ordem de Exibi\u00E7\u00E3o" }), _jsx("input", { className: "form-input", type: "number", min: 0, value: newsForm.sort_order, onChange: e => setNewsForm(p => ({ ...p, sort_order: Number(e.target.value) })) })] }), _jsxs("div", { className: "admin__field", style: { gridColumn: '1/-1' }, children: [_jsx("label", { className: "form-label", children: "Imagem de Capa" }), newsForm.image_url && (_jsxs("div", { style: { position: 'relative', marginBottom: 8 }, children: [_jsx("img", { src: newsForm.image_url, alt: "capa", style: { width: '100%', height: 140, objectFit: 'cover', borderRadius: 8, display: 'block' } }), _jsx("button", { onClick: () => setNewsForm(p => ({ ...p, image_url: '' })), style: { position: 'absolute', top: 6, right: 6, background: 'rgba(220,38,38,0.85)', color: 'white', border: 'none', borderRadius: '50%', width: 24, height: 24, cursor: 'pointer', fontSize: 14, lineHeight: '24px', textAlign: 'center' }, children: "\u2715" })] })), _jsxs("div", { style: { display: 'flex', gap: 8, flexWrap: 'wrap' }, children: [_jsx("input", { ref: newsMainImgRef, type: "file", accept: "image/*", style: { display: 'none' }, onChange: async (e) => {
                                                                 const file = e.target.files?.[0];
                                                                 if (!file)
@@ -730,86 +873,44 @@ export default function AdminHome() {
                                         background: newsMsg.type === 'success' ? 'var(--success-bg)' : 'var(--danger-bg)',
                                         color: newsMsg.type === 'success' ? 'var(--success)' : 'var(--danger)',
                                         border: `1px solid ${newsMsg.type === 'success' ? '#86efac' : '#fca5a5'}`,
-                                    }, children: [newsMsg.type === 'success' ? '✓ ' : '✕ ', newsMsg.text] }))] }), _jsxs("div", { className: "admin-prod-modal__footer", style: { gap: 10 }, children: [_jsx("button", { className: "btn btn-outline", onClick: () => setShowNewsModal(false), children: "Cancelar" }), _jsx("button", { className: "btn btn-primary", disabled: newsSaving, onClick: async () => {
+                                    }, children: [newsMsg.type === 'success' ? '✓ ' : '✕ ', newsMsg.text] }))] }), _jsxs("div", { className: "admin-prod-modal__footer", style: { gap: 10 }, children: [_jsx("button", { className: "btn btn-outline", onClick: () => setShowNewsModal(false), children: "Cancelar" }), _jsx("button", { className: "btn btn-primary", onClick: () => {
                                         if (!newsForm.title.trim()) {
                                             setNewsMsg({ type: 'error', text: 'O título é obrigatório.' });
                                             return;
                                         }
-                                        setNewsSaving(true);
-                                        setNewsMsg(null);
-                                        try {
-                                            if (editingNews) {
-                                                const ok = await updateNews(editingNews.id, newsForm);
-                                                if (ok) {
-                                                    setNews(prev => prev.map(x => x.id === editingNews.id ? { ...x, ...newsForm } : x));
-                                                    setNewsMsg({ type: 'success', text: 'Notícia atualizada!' });
-                                                    setTimeout(() => setShowNewsModal(false), 800);
-                                                }
-                                                else {
-                                                    setNewsMsg({ type: 'error', text: 'Erro ao atualizar.' });
-                                                }
-                                            }
-                                            else {
-                                                const created = await saveNews(newsForm);
-                                                if (created) {
-                                                    setNews(prev => [...prev, created]);
-                                                    setNewsMsg({ type: 'success', text: 'Notícia criada!' });
-                                                    setTimeout(() => setShowNewsModal(false), 800);
-                                                }
-                                                else {
-                                                    setNewsMsg({ type: 'error', text: 'Erro ao criar notícia.' });
-                                                }
-                                            }
+                                        if (editingNews) {
+                                            // Atualiza no draft local
+                                            setNewsDraft(prev => prev.map(x => x.id === editingNews.id ? { ...x, ...newsForm } : x));
                                         }
-                                        catch {
-                                            setNewsMsg({ type: 'error', text: 'Erro inesperado.' });
+                                        else {
+                                            // Adiciona com ID temporário no draft local
+                                            const tempId = `temp_${Date.now()}`;
+                                            setNewsDraft(prev => [...prev, { id: tempId, ...newsForm }]);
                                         }
-                                        finally {
-                                            setNewsSaving(false);
-                                        }
-                                    }, children: newsSaving ? 'Salvando...' : '💾 Salvar' })] })] }) })), showContactModal && (_jsx("div", { className: "admin-prod-modal__overlay", onClick: () => setShowContactModal(false), children: _jsxs("div", { className: "admin-prod-modal", style: { maxWidth: 520 }, onClick: e => e.stopPropagation(), children: [_jsxs("div", { className: "admin-prod-modal__header", children: [_jsx("h2", { children: editingContact ? '✏ Editar Contato' : '+ Novo Contato' }), _jsx("button", { className: "produto-modal__close", style: { color: 'white', background: 'rgba(255,255,255,0.1)' }, onClick: () => setShowContactModal(false), children: "\u2715" })] }), _jsxs("div", { className: "admin-prod-modal__body", children: [_jsxs("div", { style: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }, children: [_jsxs("div", { className: "admin__field", style: { gridColumn: '1/-1' }, children: [_jsxs("label", { className: "form-label", children: ["Nome ", _jsx("span", { style: { color: 'var(--danger)' }, children: "*" })] }), _jsx("input", { className: "form-input", placeholder: "Nome completo", value: contactForm.name, onChange: e => setContactForm(p => ({ ...p, name: e.target.value })) })] }), _jsxs("div", { className: "admin__field", style: { gridColumn: '1/-1' }, children: [_jsx("label", { className: "form-label", children: "Cargo / Fun\u00E7\u00E3o" }), _jsx("input", { className: "form-input", placeholder: "Ex: Diretor Operacional", value: contactForm.role, onChange: e => setContactForm(p => ({ ...p, role: e.target.value })) })] }), _jsxs("div", { className: "admin__field", children: [_jsx("label", { className: "form-label", children: "E-mail" }), _jsx("input", { className: "form-input", type: "email", placeholder: "email@empresa.com", value: contactForm.email, onChange: e => setContactForm(p => ({ ...p, email: e.target.value })) })] }), _jsxs("div", { className: "admin__field", children: [_jsx("label", { className: "form-label", children: "Telefone" }), _jsx("input", { className: "form-input", placeholder: "(00) 0000-0000", value: contactForm.phone, onChange: e => setContactForm(p => ({ ...p, phone: e.target.value })) })] }), _jsxs("div", { className: "admin__field", children: [_jsx("label", { className: "form-label", children: "Celular" }), _jsx("input", { className: "form-input", placeholder: "(00) 00000-0000", value: contactForm.mobile, onChange: e => setContactForm(p => ({ ...p, mobile: e.target.value })) })] }), _jsxs("div", { className: "admin__field", children: [_jsx("label", { className: "form-label", children: "Ordem de exibi\u00E7\u00E3o" }), _jsx("input", { className: "form-input", type: "number", min: 0, value: contactForm.sort_order, onChange: e => setContactForm(p => ({ ...p, sort_order: Number(e.target.value) })) })] }), _jsxs("div", { className: "admin__field", style: { gridColumn: '1/-1' }, children: [_jsx("label", { className: "form-label", children: "Endere\u00E7o" }), _jsx("input", { className: "form-input", placeholder: "Rua, n\u00FAmero \u2014 Cidade, UF", value: contactForm.address, onChange: e => setContactForm(p => ({ ...p, address: e.target.value })) })] }), _jsxs("div", { className: "admin__field", style: { gridColumn: '1/-1', display: 'flex', alignItems: 'center', gap: 10 }, children: [_jsx("input", { type: "checkbox", id: "contact-active", checked: contactForm.active, onChange: e => setContactForm(p => ({ ...p, active: e.target.checked })), style: { width: 18, height: 18, cursor: 'pointer' } }), _jsx("label", { htmlFor: "contact-active", style: { fontSize: 13, fontWeight: 600, cursor: 'pointer', color: 'var(--navy)' }, children: "Contato ativo (vis\u00EDvel no site)" })] })] }), contactMsg && (_jsxs("div", { style: {
+                                        setNewsHasDraft(true);
+                                        setNewsMsg({ type: 'success', text: editingNews ? 'Notícia editada! Clique em Publicar para salvar.' : 'Notícia adicionada! Clique em Publicar para salvar.' });
+                                        setTimeout(() => setShowNewsModal(false), 800);
+                                    }, children: "\uD83D\uDCBE Salvar Rascunho" })] })] }) })), showContactModal && (_jsx("div", { className: "admin-prod-modal__overlay", onClick: () => setShowContactModal(false), children: _jsxs("div", { className: "admin-prod-modal", style: { maxWidth: 520 }, onClick: e => e.stopPropagation(), children: [_jsxs("div", { className: "admin-prod-modal__header", children: [_jsx("h2", { children: editingContact ? '✏ Editar Contato' : '+ Novo Contato' }), _jsx("button", { className: "produto-modal__close", style: { color: 'white', background: 'rgba(255,255,255,0.1)' }, onClick: () => setShowContactModal(false), children: "\u2715" })] }), _jsxs("div", { className: "admin-prod-modal__body", children: [_jsxs("div", { style: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }, children: [_jsxs("div", { className: "admin__field", style: { gridColumn: '1/-1' }, children: [_jsxs("label", { className: "form-label", children: ["Nome ", _jsx("span", { style: { color: 'var(--danger)' }, children: "*" })] }), _jsx("input", { className: "form-input", placeholder: "Nome completo", value: contactForm.name, onChange: e => setContactForm(p => ({ ...p, name: e.target.value })) })] }), _jsxs("div", { className: "admin__field", style: { gridColumn: '1/-1' }, children: [_jsx("label", { className: "form-label", children: "Cargo / Fun\u00E7\u00E3o" }), _jsx("input", { className: "form-input", placeholder: "Ex: Diretor Operacional", value: contactForm.role, onChange: e => setContactForm(p => ({ ...p, role: e.target.value })) })] }), _jsxs("div", { className: "admin__field", children: [_jsx("label", { className: "form-label", children: "E-mail" }), _jsx("input", { className: "form-input", type: "email", placeholder: "email@empresa.com", value: contactForm.email, onChange: e => setContactForm(p => ({ ...p, email: e.target.value })) })] }), _jsxs("div", { className: "admin__field", children: [_jsx("label", { className: "form-label", children: "Telefone" }), _jsx("input", { className: "form-input", placeholder: "(00) 0000-0000", value: contactForm.phone, onChange: e => setContactForm(p => ({ ...p, phone: e.target.value })) })] }), _jsxs("div", { className: "admin__field", children: [_jsx("label", { className: "form-label", children: "Celular" }), _jsx("input", { className: "form-input", placeholder: "(00) 00000-0000", value: contactForm.mobile, onChange: e => setContactForm(p => ({ ...p, mobile: e.target.value })) })] }), _jsxs("div", { className: "admin__field", children: [_jsx("label", { className: "form-label", children: "Ordem de exibi\u00E7\u00E3o" }), _jsx("input", { className: "form-input", type: "number", min: 0, value: contactForm.sort_order, onChange: e => setContactForm(p => ({ ...p, sort_order: Number(e.target.value) })) })] }), _jsxs("div", { className: "admin__field", style: { gridColumn: '1/-1' }, children: [_jsx("label", { className: "form-label", children: "Endere\u00E7o" }), _jsx("input", { className: "form-input", placeholder: "Rua, n\u00FAmero \u2014 Cidade, UF", value: contactForm.address, onChange: e => setContactForm(p => ({ ...p, address: e.target.value })) })] }), _jsxs("div", { className: "admin__field", style: { gridColumn: '1/-1', display: 'flex', alignItems: 'center', gap: 10 }, children: [_jsx("input", { type: "checkbox", id: "contact-active", checked: contactForm.active, onChange: e => setContactForm(p => ({ ...p, active: e.target.checked })), style: { width: 18, height: 18, cursor: 'pointer' } }), _jsx("label", { htmlFor: "contact-active", style: { fontSize: 13, fontWeight: 600, cursor: 'pointer', color: 'var(--navy)' }, children: "Contato ativo (vis\u00EDvel no site)" })] })] }), contactMsg && (_jsxs("div", { style: {
                                         padding: '10px 14px', borderRadius: 8, fontSize: 13, marginTop: 12,
                                         background: contactMsg.type === 'success' ? 'var(--success-bg)' : 'var(--danger-bg)',
                                         color: contactMsg.type === 'success' ? 'var(--success)' : 'var(--danger)',
                                         border: `1px solid ${contactMsg.type === 'success' ? '#86efac' : '#fca5a5'}`,
-                                    }, children: [contactMsg.type === 'success' ? '✓ ' : '✕ ', contactMsg.text] }))] }), _jsxs("div", { className: "admin-prod-modal__footer", style: { gap: 10 }, children: [_jsx("button", { className: "btn btn-outline", onClick: () => setShowContactModal(false), children: "Cancelar" }), _jsx("button", { className: "btn btn-primary", disabled: contactSaving, onClick: async () => {
+                                    }, children: [contactMsg.type === 'success' ? '✓ ' : '✕ ', contactMsg.text] }))] }), _jsxs("div", { className: "admin-prod-modal__footer", style: { gap: 10 }, children: [_jsx("button", { className: "btn btn-outline", onClick: () => setShowContactModal(false), children: "Cancelar" }), _jsx("button", { className: "btn btn-primary", onClick: () => {
                                         if (!contactForm.name.trim()) {
                                             setContactMsg({ type: 'error', text: 'O nome é obrigatório.' });
                                             return;
                                         }
-                                        setContactSaving(true);
-                                        setContactMsg(null);
-                                        try {
-                                            if (editingContact) {
-                                                const ok = await updateContact(editingContact.id, contactForm);
-                                                if (ok) {
-                                                    setContacts(prev => prev.map(x => x.id === editingContact.id ? { ...x, ...contactForm } : x));
-                                                    setContactMsg({ type: 'success', text: 'Contato atualizado!' });
-                                                    setTimeout(() => setShowContactModal(false), 800);
-                                                }
-                                                else {
-                                                    setContactMsg({ type: 'error', text: 'Erro ao atualizar.' });
-                                                }
-                                            }
-                                            else {
-                                                const created = await saveContact(contactForm);
-                                                if (created) {
-                                                    setContacts(prev => [...prev, created]);
-                                                    setContactMsg({ type: 'success', text: 'Contato criado!' });
-                                                    setTimeout(() => setShowContactModal(false), 800);
-                                                }
-                                                else {
-                                                    setContactMsg({ type: 'error', text: 'Erro ao criar contato.' });
-                                                }
-                                            }
+                                        if (editingContact) {
+                                            setContactsDraft(prev => prev.map(x => x.id === editingContact.id ? { ...x, ...contactForm } : x));
                                         }
-                                        catch {
-                                            setContactMsg({ type: 'error', text: 'Erro inesperado.' });
+                                        else {
+                                            const tempId = `temp_${Date.now()}`;
+                                            setContactsDraft(prev => [...prev, { id: tempId, ...contactForm }]);
                                         }
-                                        finally {
-                                            setContactSaving(false);
-                                        }
-                                    }, children: contactSaving ? 'Salvando...' : '💾 Salvar' })] })] }) })), showAcessoModal && (_jsx("div", { className: "admin-prod-modal__overlay", onClick: () => { setShowAcessoModal(false); setAcessoMsg(null); }, children: _jsxs("div", { className: "admin-prod-modal", style: { maxWidth: 480 }, onClick: e => e.stopPropagation(), children: [_jsxs("div", { className: "admin-prod-modal__header", children: [_jsx("h2", { children: "\u2699 Meu Acesso" }), _jsx("button", { className: "produto-modal__close", style: { color: 'white', background: 'rgba(255,255,255,0.1)' }, onClick: () => { setShowAcessoModal(false); setAcessoMsg(null); }, children: "\u2715" })] }), _jsxs("div", { className: "admin-prod-modal__body", children: [_jsxs("div", { className: "admin__field", children: [_jsx("label", { className: "form-label", children: "Nome" }), _jsx("input", { className: "form-input", value: acessoName, onChange: e => setAcessoName(e.target.value), placeholder: "Seu nome" })] }), _jsxs("div", { className: "admin__field", children: [_jsx("label", { className: "form-label", children: "E-mail" }), _jsx("input", { className: "form-input", type: "email", value: acessoEmail, onChange: e => setAcessoEmail(e.target.value), placeholder: "seu@email.com" })] }), _jsxs("div", { className: "admin__field", children: [_jsxs("label", { className: "form-label", children: ["Nova Senha ", _jsx("span", { style: { fontWeight: 400, color: 'var(--gray-400)', fontSize: 11 }, children: "(deixe em branco para manter a atual)" })] }), _jsx("input", { className: "form-input", type: "password", value: acessoPassword, onChange: e => setAcessoPassword(e.target.value), placeholder: "\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022" })] }), _jsxs("div", { className: "admin__field", children: [_jsx("label", { className: "form-label", children: "Confirmar Nova Senha" }), _jsx("input", { className: "form-input", type: "password", value: acessoConfirm, onChange: e => setAcessoConfirm(e.target.value), placeholder: "\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022" })] }), acessoMsg && (_jsxs("div", { style: {
+                                        setContactsHasDraft(true);
+                                        setContactMsg({ type: 'success', text: editingContact ? 'Contato editado! Clique em Publicar para salvar.' : 'Contato adicionado! Clique em Publicar para salvar.' });
+                                        setTimeout(() => setShowContactModal(false), 800);
+                                    }, children: "\uD83D\uDCBE Salvar Rascunho" })] })] }) })), showAcessoModal && (_jsx("div", { className: "admin-prod-modal__overlay", onClick: () => { setShowAcessoModal(false); setAcessoMsg(null); }, children: _jsxs("div", { className: "admin-prod-modal", style: { maxWidth: 480 }, onClick: e => e.stopPropagation(), children: [_jsxs("div", { className: "admin-prod-modal__header", children: [_jsx("h2", { children: "\u2699 Meu Acesso" }), _jsx("button", { className: "produto-modal__close", style: { color: 'white', background: 'rgba(255,255,255,0.1)' }, onClick: () => { setShowAcessoModal(false); setAcessoMsg(null); }, children: "\u2715" })] }), _jsxs("div", { className: "admin-prod-modal__body", children: [_jsxs("div", { className: "admin__field", children: [_jsx("label", { className: "form-label", children: "Nome" }), _jsx("input", { className: "form-input", value: acessoName, onChange: e => setAcessoName(e.target.value), placeholder: "Seu nome" })] }), _jsxs("div", { className: "admin__field", children: [_jsx("label", { className: "form-label", children: "E-mail" }), _jsx("input", { className: "form-input", type: "email", value: acessoEmail, onChange: e => setAcessoEmail(e.target.value), placeholder: "seu@email.com" })] }), _jsxs("div", { className: "admin__field", children: [_jsxs("label", { className: "form-label", children: ["Nova Senha ", _jsx("span", { style: { fontWeight: 400, color: 'var(--gray-400)', fontSize: 11 }, children: "(deixe em branco para manter a atual)" })] }), _jsx("input", { className: "form-input", type: "password", value: acessoPassword, onChange: e => setAcessoPassword(e.target.value), placeholder: "\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022" })] }), _jsxs("div", { className: "admin__field", children: [_jsx("label", { className: "form-label", children: "Confirmar Nova Senha" }), _jsx("input", { className: "form-input", type: "password", value: acessoConfirm, onChange: e => setAcessoConfirm(e.target.value), placeholder: "\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022" })] }), acessoMsg && (_jsxs("div", { style: {
                                         padding: '10px 14px', borderRadius: 8, fontSize: 13,
                                         background: acessoMsg.type === 'success' ? 'var(--success-bg)' : 'var(--danger-bg)',
                                         color: acessoMsg.type === 'success' ? 'var(--success)' : 'var(--danger)',

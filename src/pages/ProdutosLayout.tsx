@@ -9,9 +9,10 @@ interface Props {
   subheadline: string;
   products: Product[];
   categories: Category[];
+  disableNavigation?: boolean;
 }
 
-export default function ProdutosLayout({ headline = '', subheadline = '', products = [], categories = [] }: Props) {
+export default function ProdutosLayout({ headline = '', subheadline = '', products = [], categories = [], disableNavigation = false }: Props) {
   const [search,         setSearch]         = useState('');
   const [selectedCatIds, setSelectedCatIds] = useState<number[]>([]);
   const [page,           setPage]           = useState(1);
@@ -141,7 +142,10 @@ export default function ProdutosLayout({ headline = '', subheadline = '', produc
                           ? p.description.slice(0, 80).trimEnd() + '…'
                           : p.description}
                       </p>
-                      <button className="produto-card__saiba-mais" onClick={() => navigate('/produtos/' + p.id)}>Saiba mais</button>
+                      <button className="produto-card__saiba-mais"
+                        onClick={() => !disableNavigation && navigate('/produtos/' + p.id)}
+                        style={{ cursor: disableNavigation ? 'default' : 'pointer', opacity: disableNavigation ? 0.6 : 1 }}
+                      >Saiba mais</button>
                     </div>
                   </div>
                 ))}
