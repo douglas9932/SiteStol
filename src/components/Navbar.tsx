@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useCompany } from '@/hooks/useCompany';
+import { IS_APR } from './ApresentacaoBanner';
 import './Navbar.css';
 
 const NAV_ITEMS = [
@@ -13,6 +14,7 @@ const NAV_ITEMS = [
 
 export default function Navbar() {
   const location = useLocation();
+  const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
   const company = useCompany();
 
@@ -55,6 +57,16 @@ export default function Navbar() {
           </div>
 
           {/* ── Burger ── */}
+          {/* ── Botão Administração (só no modo apresentação) ── */}
+          {IS_APR && (
+            <button
+              className="navbar__admin-btn"
+              onClick={() => navigate('/login')}
+            >
+              🔐 Administração
+            </button>
+          )}
+
           <button
             className={`navbar__burger ${menuOpen ? 'navbar__burger--open' : ''}`}
             onClick={() => setMenuOpen((v) => !v)}

@@ -1,0 +1,125 @@
+/* ── Janela flutuante ── */
+.apr-window {
+  position: fixed;
+  z-index: 99999;
+  width: 360px;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow:
+    0 24px 64px rgba(0,0,0,0.55),
+    0 4px 16px rgba(0,0,0,0.3),
+    0 0 0 1px rgba(255,255,255,0.08);
+  font-family: 'Montserrat', -apple-system, sans-serif;
+  /* Glassmorphism */
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+.apr-window--drag {
+  box-shadow:
+    0 40px 80px rgba(0,0,0,0.65),
+    0 8px 24px rgba(0,0,0,0.4),
+    0 0 0 1px rgba(255,255,255,0.1);
+  cursor: grabbing !important;
+}
+
+/* ── Barra de título ── */
+.apr-window__titlebar {
+  background: #1e1e2e;
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: grab;
+  user-select: none;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+
+.apr-window--drag .apr-window__titlebar {
+  cursor: grabbing;
+}
+
+.apr-window__dots {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.apr-window__dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.apr-window__dot--red    { background: #ff5f57; }
+.apr-window__dot--yellow { background: #febc2e; }
+.apr-window__dot--green  { background: #28c840; }
+
+.apr-window__titlebar-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: rgba(255,255,255,0.4);
+  letter-spacing: 0.3px;
+}
+
+/* ── Corpo ── */
+.apr-window__body {
+  background: linear-gradient(135deg, #0f4c8a 0%, #1a6dbf 50%, #0f4c8a 100%);
+  padding: 20px 20px 22px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.apr-window__icon {
+  font-size: 36px;
+  flex-shrink: 0;
+  filter: drop-shadow(0 2px 8px rgba(30,144,255,0.6));
+}
+
+.apr-window__text {
+  flex: 1;
+}
+
+.apr-window__title {
+  font-size: 15px;
+  font-weight: 800;
+  color: #fff;
+  margin-bottom: 5px;
+  line-height: 1.2;
+}
+
+.apr-window__sub {
+  font-size: 11px;
+  color: rgba(255,255,255,0.8);
+  line-height: 1.5;
+  font-weight: 500;
+}
+
+/* Barra de progresso decorativa */
+.apr-window__body::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #00c6ff, #0072ff, #00c6ff);
+  background-size: 200% 100%;
+  animation: aprSlide 3s linear infinite;
+}
+
+.apr-window__body {
+  position: relative;
+}
+
+@keyframes aprSlide {
+  0%   { background-position: 0% 0%; }
+  100% { background-position: 200% 0%; }
+}
+
+/* Mobile */
+@media (max-width: 480px) {
+  .apr-window { width: 300px; }
+}
