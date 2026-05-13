@@ -450,14 +450,14 @@ function PreviewContatos() {
 /* ── Preview: Empresa ── */
 function PreviewEmpresa() {
   const { content } = useContent();
+  const [draft, setDraft] = useState<any>(null);
 
   useEffect(() => {
     try {
-      const draft = JSON.parse(sessionStorage.getItem('empresa_preview_draft') ?? '{}');
-      if (draft.color_primary || draft.color_secondary) {
-        applyCompanyColors(draft);
-      }
-      if (draft.name) document.title = `[Preview] ${draft.name}`;
+      const d = JSON.parse(sessionStorage.getItem('empresa_preview_draft') ?? '{}');
+      setDraft(d);
+      if (d.color_primary || d.color_secondary) applyCompanyColors(d);
+      if (d.name) document.title = `[Preview] ${d.name}`;
     } catch {}
   }, []);
 
@@ -469,9 +469,40 @@ function PreviewEmpresa() {
   const safeStats    = stats    ?? [];
   const safeFeatures = features ?? [];
 
+  const name     = draft?.name     || '';
+  const iconUrl  = draft?.icon_url || '';
+  const desc     = draft?.description || '';
+  const cnpj     = draft?.cnpj || '';
+  const initials = name.split(' ').slice(0,2).map((w: string) => w[0]).join('').toUpperCase();
+  const firstWord = name.split(' ')[0];
+  const rest      = name.split(' ').slice(1).join(' ');
+
   return (
     <div className="page-wrapper" style={{ paddingTop:0 }}>
+      {/* Navbar com dados do draft */}
+      <nav className="navbar" style={{ position:'relative' }}>
+        <div className="navbar__inner">
+          <a href="/" className="navbar__logo">
+            {iconUrl
+              ? <img src={iconUrl} alt={name} className="navbar__logo-img" />
+              : <div className="navbar__logo-icon">{initials.slice(0,2) || 'AT'}</div>
+            }
+            <div className="navbar__logo-text">
+              <span className="navbar__logo-name">{firstWord || 'Empresa'}</span>
+              {rest && <span className="navbar__logo-sub">{rest}</span>}
+            </div>
+          </a>
+          <div className="navbar__links">
+            {['Sobre','Produtos','Notícias','Calibração','Testes STOL','Contatos'].map(l => (
+              <span key={l} className="navbar__link" style={{ cursor:'default' }}>{l}</span>
+            ))}
+          </div>
+        </div>
+      </nav>
+
+      {/* Home content */}
       <Carousel images={carouselImages} tagline={carouselTagline ?? ''} title={carouselTitle ?? ''} subtitle={carouselSubtitle ?? ''} />
+
       <section className="section home__sobre" style={{ background:'#fff' }}>
         <div className="container">
           <p className="section-label">Quem Somos</p>
@@ -492,6 +523,7 @@ function PreviewEmpresa() {
           </div>
         </div>
       </section>
+
       {safeFeatures.length > 0 && (
         <section className="home__features">
           <div className="container">
@@ -507,7 +539,28 @@ function PreviewEmpresa() {
           </div>
         </section>
       )}
-      <Footer />
+
+      {/* Footer com dados do draft */}
+      <footer className="footer">
+        <div className="footer__inner container">
+          <div className="footer__top">
+            <div className="footer__brand">
+              <div className="footer__brand-logo">
+                {iconUrl
+                  ? <img src={iconUrl} alt={name} className="footer__brand-icon-img" />
+                  : <div className="footer__brand-icon">{initials.slice(0,2) || 'AT'}</div>
+                }
+                <span className="footer__brand-name">{name || 'Empresa'}</span>
+              </div>
+              {desc && <p className="footer__brand-desc">{desc}</p>}
+            </div>
+          </div>
+          <div className="footer__bottom">
+            <p>© {new Date().getFullYear()} {name || 'Empresa'}. Todos os direitos reservados.</p>
+            {cnpj && <p>{cnpj}</p>}
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }

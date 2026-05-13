@@ -764,27 +764,7 @@ export default function AdminHome() {
                                                         background: companyMsg.type === 'success' ? 'var(--success-bg)' : 'var(--danger-bg)',
                                                         color: companyMsg.type === 'success' ? 'var(--success)' : 'var(--danger)',
                                                         border: `1px solid ${companyMsg.type === 'success' ? '#86efac' : '#fca5a5'}`,
-                                                    }, children: [companyMsg.type === 'success' ? '✓ ' : '✕ ', companyMsg.text] })), _jsx("button", { className: "btn btn-primary", style: { marginTop: '1.5rem' }, disabled: companySaving, onClick: async () => {
-                                                        if (!companyDraft.name.trim()) {
-                                                            setCompanyMsg({ type: 'error', text: 'O nome da empresa é obrigatório.' });
-                                                            return;
-                                                        }
-                                                        setCompanySaving(true);
-                                                        setCompanyMsg(null);
-                                                        try {
-                                                            await saveCompanySettings(company);
-                                                            setCompanyMsg({ type: 'success', text: 'Configurações salvas com sucesso!' });
-                                                            // Atualiza title imediatamente e recarrega para refletir em toda a UI
-                                                            document.title = companyDraft.name;
-                                                            setTimeout(() => window.location.reload(), 800);
-                                                        }
-                                                        catch {
-                                                            setCompanyMsg({ type: 'error', text: 'Erro ao salvar. Tente novamente.' });
-                                                        }
-                                                        finally {
-                                                            setCompanySaving(false);
-                                                        }
-                                                    }, children: companySaving ? 'Salvando...' : '💾 Salvar' })] }))] }) })] })] }), showCalibModal && (() => {
+                                                    }, children: [companyMsg.type === 'success' ? '✓ ' : '✕ ', companyMsg.text] })), _jsxs("p", { className: "admin__hint", style: { marginTop: '1rem', color: 'var(--gray-400)' }, children: ["As altera\u00E7\u00F5es s\u00F3 ser\u00E3o aplicadas no site ap\u00F3s clicar em ", _jsx("strong", { children: "Publicar" }), "."] })] }))] }) })] })] }), showCalibModal && (() => {
                 const cols = calibForm.columns;
                 const rows = calibForm.rows;
                 const rowHeaders = calibForm.row_headers ?? [];

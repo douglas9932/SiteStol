@@ -1847,32 +1847,9 @@ export default function AdminHome() {
                   </div>
                 )}
 
-                <button
-                  className="btn btn-primary"
-                  style={{ marginTop: '1.5rem' }}
-                  disabled={companySaving}
-                  onClick={async () => {
-                    if (!companyDraft.name.trim()) {
-                      setCompanyMsg({ type: 'error', text: 'O nome da empresa é obrigatório.' });
-                      return;
-                    }
-                    setCompanySaving(true);
-                    setCompanyMsg(null);
-                    try {
-                      await saveCompanySettings(company);
-                      setCompanyMsg({ type: 'success', text: 'Configurações salvas com sucesso!' });
-                      // Atualiza title imediatamente e recarrega para refletir em toda a UI
-                      document.title = companyDraft.name;
-                      setTimeout(() => window.location.reload(), 800);
-                    } catch {
-                      setCompanyMsg({ type: 'error', text: 'Erro ao salvar. Tente novamente.' });
-                    } finally {
-                      setCompanySaving(false);
-                    }
-                  }}
-                >
-                  {companySaving ? 'Salvando...' : '💾 Salvar'}
-                </button>
+                <p className="admin__hint" style={{ marginTop:'1rem', color:'var(--gray-400)' }}>
+                  As alterações só serão aplicadas no site após clicar em <strong>Publicar</strong>.
+                </p>
               </div>
             )}
 
