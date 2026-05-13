@@ -655,17 +655,16 @@ export default function AdminHome() {
   });
 
   const handlePreview = () => {
-    // Abas com draft — salva rascunho e abre preview
     if (activeTab === 'home') {
-      updateDraft('home', { carouselImages: homeImages, companyDescription: homeText, carouselTagline, carouselTitle, carouselSubtitle, sobreTitle, stats, featuresTitle, features });
+      const draft = { carouselImages: homeImages, companyDescription: homeText, carouselTagline, carouselTitle, carouselSubtitle, sobreTitle, stats, featuresTitle, features };
+      sessionStorage.setItem('home_preview_draft', JSON.stringify(draft));
       window.open('/preview?page=home', '_blank');
     } else if (activeTab === 'sobre') {
-      updateDraft('sobre', sobrePayload());
+      sessionStorage.setItem('sobre_preview_draft', JSON.stringify(sobrePayload()));
       window.open('/preview?page=sobre', '_blank');
     } else if (activeTab === 'produtos') {
-      updateDraft('products', { products, headline: prodHeadline, subheadline: prodSubline });
+      sessionStorage.setItem('produtos_preview_draft', JSON.stringify({ products, headline: prodHeadline, subheadline: prodSubline }));
       window.open('/preview?page=produtos', '_blank');
-    // Abas sem draft — abre direto a página pública
     } else if (activeTab === 'calibracao') {
       sessionStorage.setItem('calib_preview_draft', JSON.stringify(calibDraft));
       window.open('/preview?page=calibracao', '_blank');

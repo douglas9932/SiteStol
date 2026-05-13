@@ -28,23 +28,65 @@ function PreviewBanner({ page }) {
 }
 /* ── Preview: Home ── */
 function PreviewHome() {
-    const { content } = useContent();
-    const { carouselImages = [], companyDescription = '', carouselTagline, carouselTitle, carouselSubtitle, sobreTitle, stats, featuresTitle, features, } = content.draft.home;
-    const safeStats = stats ?? [];
-    const safeFeatures = features ?? [];
+    const draft = (() => {
+        try {
+            return JSON.parse(sessionStorage.getItem('home_preview_draft') ?? '{}');
+        }
+        catch {
+            return {};
+        }
+    })();
+    const carouselImages = draft.carouselImages ?? [];
+    const companyDescription = draft.companyDescription ?? '';
+    const carouselTagline = draft.carouselTagline ?? '';
+    const carouselTitle = draft.carouselTitle ?? '';
+    const carouselSubtitle = draft.carouselSubtitle ?? '';
+    const sobreTitle = draft.sobreTitle ?? '';
+    const safeStats = draft.stats ?? [];
+    const featuresTitle = draft.featuresTitle ?? '';
+    const safeFeatures = draft.features ?? [];
     return (_jsxs("div", { className: "page-wrapper", style: { paddingTop: 0 }, children: [_jsx(Carousel, { images: carouselImages, tagline: carouselTagline ?? '', title: carouselTitle ?? '', subtitle: carouselSubtitle ?? '' }), _jsx("section", { className: "section home__sobre", style: { background: '#fff' }, children: _jsxs("div", { className: "container", children: [_jsx("p", { className: "section-label", children: "Quem Somos" }), _jsx("h2", { className: "section-title", children: sobreTitle ?? 'Sobre a Empresa' }), _jsx("div", { className: "section-divider" }), _jsxs("div", { className: "home__sobre-grid", children: [_jsx("div", { className: "home__sobre-text", children: _jsx("p", { className: "home__description", children: companyDescription }) }), _jsx("div", { className: "home__stats", children: safeStats.map((s, i) => (_jsxs("div", { className: "home__stat-card", children: [_jsx("span", { className: "home__stat-value", children: s.value }), _jsx("span", { className: "home__stat-label", children: s.label })] }, i))) })] })] }) }), safeFeatures.length > 0 && (_jsx("section", { className: "home__features", children: _jsxs("div", { className: "container", children: [_jsx("p", { className: "section-label", style: { color: 'var(--gold-light)' }, children: "Por que nos escolher" }), _jsx("h2", { className: "section-title", style: { color: 'var(--white)' }, children: featuresTitle ?? 'Diferenciais' }), _jsx("div", { className: "section-divider", style: { background: 'var(--gold)' } }), _jsx("div", { className: "home__features-grid", children: safeFeatures.map((f, i) => (_jsxs("div", { className: "home__feature-card", children: [_jsx("div", { className: "home__feature-icon", children: f.icon }), _jsx("h3", { className: "home__feature-title", children: f.title }), _jsx("p", { className: "home__feature-desc", children: f.desc })] }, i))) })] }) })), _jsx(Footer, {})] }));
 }
 /* ── Preview: Sobre ── */
 function PreviewSobre() {
-    const { content } = useContent();
-    const { companyDescription = '' } = content.draft.home ?? {};
-    const { heroTitle = '', heroSubtitle = '', especialidades = [], timelineTitle = '', timeline = [], } = content.draft.sobre ?? {};
+    const homeDraft = (() => {
+        try {
+            return JSON.parse(sessionStorage.getItem('home_preview_draft') ?? '{}');
+        }
+        catch {
+            return {};
+        }
+    })();
+    const sobreDraft = (() => {
+        try {
+            return JSON.parse(sessionStorage.getItem('sobre_preview_draft') ?? '{}');
+        }
+        catch {
+            return {};
+        }
+    })();
+    const companyDescription = homeDraft.companyDescription ?? '';
+    const heroTitle = sobreDraft.heroTitle ?? '';
+    const heroSubtitle = sobreDraft.heroSubtitle ?? '';
+    const especialidades = sobreDraft.especialidades ?? [];
+    const timelineTitle = sobreDraft.timelineTitle ?? '';
+    const timeline = sobreDraft.timeline ?? [];
     return (_jsxs("div", { className: "page-wrapper", style: { paddingTop: 0 }, children: [_jsxs("div", { className: "page-hero", children: [_jsx("p", { className: "page-hero__label", children: "Nossa Hist\u00F3ria" }), _jsx("h1", { className: "page-hero__title", children: heroTitle }), heroSubtitle && _jsx("p", { className: "page-hero__subtitle", children: heroSubtitle })] }), _jsx("section", { className: "section", children: _jsxs("div", { className: "container sobre__grid", children: [_jsxs("div", { className: "sobre__text", children: [_jsx("p", { className: "section-label", children: "Quem Somos" }), _jsx("div", { className: "section-divider" }), _jsx("p", { className: "sobre__desc", children: companyDescription })] }), especialidades.length > 0 && (_jsxs("div", { className: "sobre__especialidades", children: [_jsx("h3", { className: "sobre__esp-title", children: "Especialidades" }), _jsx("ul", { className: "sobre__esp-list", children: especialidades.map((e, i) => (_jsxs("li", { className: "sobre__esp-item", children: [_jsx("span", { className: "sobre__esp-dot" }), e] }, i))) })] }))] }) }), timeline.length > 0 && (_jsx("section", { className: "section sobre__timeline-section", children: _jsxs("div", { className: "container", children: [_jsx("p", { className: "section-label", children: "Jornada" }), _jsx("h2", { className: "section-title", children: timelineTitle }), _jsx("div", { className: "section-divider" }), _jsx("div", { className: "sobre__timeline", children: timeline.map((t, i) => (_jsxs("div", { className: `sobre__timeline-item ${i % 2 === 0 ? 'sobre__timeline-item--left' : 'sobre__timeline-item--right'}`, children: [_jsx("div", { className: "sobre__timeline-dot" }), _jsxs("div", { className: "sobre__timeline-card", children: [_jsx("span", { className: "sobre__timeline-year", children: t.year }), _jsx("h3", { className: "sobre__timeline-title", children: t.title }), _jsx("p", { className: "sobre__timeline-desc", children: t.desc })] })] }, i))) })] }) })), _jsx(Footer, {})] }));
 }
 /* ── Preview: Produtos ── */
 function PreviewProdutos() {
     const { content } = useContent();
-    const { headline = '', subheadline = '', products = [] } = content.draft.products ?? {};
+    const draft = (() => {
+        try {
+            return JSON.parse(sessionStorage.getItem('produtos_preview_draft') ?? '{}');
+        }
+        catch {
+            return {};
+        }
+    })();
+    const headline = draft.headline ?? '';
+    const subheadline = draft.subheadline ?? '';
+    const products = Array.isArray(draft.products) ? draft.products : [];
     const categories = content.categories ?? [];
     return (_jsxs("div", { className: "page-wrapper", style: { paddingTop: 0 }, children: [_jsx(ProdutosLayout, { headline: headline, subheadline: subheadline, products: products, categories: categories, disableNavigation: true }), _jsx(Footer, {})] }));
 }
@@ -122,18 +164,21 @@ function PreviewContatos() {
 /* ── Preview: Empresa ── */
 function PreviewEmpresa() {
     const { content } = useContent();
-    const [draft, setDraft] = useState(null);
-    useEffect(() => {
+    // Lê do sessionStorage sincronamente para evitar render vazio
+    const [draft] = useState(() => {
         try {
-            const d = JSON.parse(sessionStorage.getItem('empresa_preview_draft') ?? '{}');
-            setDraft(d);
-            if (d.color_primary || d.color_secondary)
-                applyCompanyColors(d);
-            if (d.name)
-                document.title = `[Preview] ${d.name}`;
+            return JSON.parse(sessionStorage.getItem('empresa_preview_draft') ?? '{}');
         }
-        catch { }
-    }, []);
+        catch {
+            return {};
+        }
+    });
+    useEffect(() => {
+        if (draft.color_primary || draft.color_secondary)
+            applyCompanyColors(draft);
+        if (draft.name)
+            document.title = `[Preview] ${draft.name}`;
+    }, [draft]);
     const { carouselImages = [], companyDescription = '', carouselTagline, carouselTitle, carouselSubtitle, sobreTitle, stats, featuresTitle, features, } = content.published.home ?? {};
     const safeStats = stats ?? [];
     const safeFeatures = features ?? [];
@@ -146,7 +191,7 @@ function PreviewEmpresa() {
     const rest = name.split(' ').slice(1).join(' ');
     return (_jsxs("div", { className: "page-wrapper", style: { paddingTop: 0 }, children: [_jsx("nav", { className: "navbar", style: { position: 'relative' }, children: _jsxs("div", { className: "navbar__inner", children: [_jsxs("a", { href: "/", className: "navbar__logo", children: [iconUrl
                                     ? _jsx("img", { src: iconUrl, alt: name, className: "navbar__logo-img" })
-                                    : _jsx("div", { className: "navbar__logo-icon", children: initials.slice(0, 2) || 'AT' }), _jsxs("div", { className: "navbar__logo-text", children: [_jsx("span", { className: "navbar__logo-name", children: firstWord || 'Empresa' }), rest && _jsx("span", { className: "navbar__logo-sub", children: rest })] })] }), _jsx("div", { className: "navbar__links", children: ['Sobre', 'Produtos', 'Notícias', 'Calibração', 'Testes STOL', 'Contatos'].map(l => (_jsx("span", { className: "navbar__link", style: { cursor: 'default' }, children: l }, l))) })] }) }), _jsx(Carousel, { images: carouselImages, tagline: carouselTagline ?? '', title: carouselTitle ?? '', subtitle: carouselSubtitle ?? '' }), _jsx("section", { className: "section home__sobre", style: { background: '#fff' }, children: _jsxs("div", { className: "container", children: [_jsx("p", { className: "section-label", children: "Quem Somos" }), _jsx("h2", { className: "section-title", children: sobreTitle ?? '' }), _jsx("div", { className: "section-divider" }), _jsxs("div", { className: "home__sobre-grid", children: [_jsx("div", { className: "home__sobre-text", children: _jsx("p", { className: "home__description", children: companyDescription }) }), _jsx("div", { className: "home__stats", children: safeStats.map((s, i) => (_jsxs("div", { className: "home__stat-card", children: [_jsx("span", { className: "home__stat-value", children: s.value }), _jsx("span", { className: "home__stat-label", children: s.label })] }, i))) })] })] }) }), safeFeatures.length > 0 && (_jsx("section", { className: "home__features", children: _jsx("div", { className: "container", children: _jsx("div", { className: "home__features-grid", children: safeFeatures.map((f, i) => (_jsxs("div", { className: "home__feature-card", children: [_jsx("div", { className: "home__feature-icon", children: f.icon }), _jsx("h3", { className: "home__feature-title", children: f.title }), _jsx("p", { className: "home__feature-desc", children: f.desc })] }, i))) }) }) })), _jsx("footer", { className: "footer", children: _jsxs("div", { className: "footer__inner container", children: [_jsx("div", { className: "footer__top", children: _jsxs("div", { className: "footer__brand", children: [_jsxs("div", { className: "footer__brand-logo", children: [iconUrl
+                                    : _jsx("div", { className: "navbar__logo-icon", children: initials.slice(0, 2) || 'AT' }), _jsxs("div", { className: "navbar__logo-text", children: [_jsx("span", { className: "navbar__logo-name", children: firstWord || 'Empresa' }), rest && _jsx("span", { className: "navbar__logo-sub", children: rest })] })] }), _jsx("div", { className: "navbar__links", children: ['Sobre', 'Produtos', 'Notícias', 'Calibração', 'Contatos'].map(l => (_jsx("span", { className: "navbar__link", style: { cursor: 'default' }, children: l }, l))) })] }) }), _jsx(Carousel, { images: carouselImages, tagline: carouselTagline ?? '', title: carouselTitle ?? '', subtitle: carouselSubtitle ?? '' }), _jsx("section", { className: "section home__sobre", style: { background: '#fff' }, children: _jsxs("div", { className: "container", children: [_jsx("p", { className: "section-label", children: "Quem Somos" }), _jsx("h2", { className: "section-title", children: sobreTitle ?? '' }), _jsx("div", { className: "section-divider" }), _jsxs("div", { className: "home__sobre-grid", children: [_jsx("div", { className: "home__sobre-text", children: _jsx("p", { className: "home__description", children: companyDescription }) }), _jsx("div", { className: "home__stats", children: safeStats.map((s, i) => (_jsxs("div", { className: "home__stat-card", children: [_jsx("span", { className: "home__stat-value", children: s.value }), _jsx("span", { className: "home__stat-label", children: s.label })] }, i))) })] })] }) }), safeFeatures.length > 0 && (_jsx("section", { className: "home__features", children: _jsx("div", { className: "container", children: _jsx("div", { className: "home__features-grid", children: safeFeatures.map((f, i) => (_jsxs("div", { className: "home__feature-card", children: [_jsx("div", { className: "home__feature-icon", children: f.icon }), _jsx("h3", { className: "home__feature-title", children: f.title }), _jsx("p", { className: "home__feature-desc", children: f.desc })] }, i))) }) }) })), _jsx("footer", { className: "footer", children: _jsxs("div", { className: "footer__inner container", children: [_jsx("div", { className: "footer__top", children: _jsxs("div", { className: "footer__brand", children: [_jsxs("div", { className: "footer__brand-logo", children: [iconUrl
                                                 ? _jsx("img", { src: iconUrl, alt: name, className: "footer__brand-icon-img" })
                                                 : _jsx("div", { className: "footer__brand-icon", children: initials.slice(0, 2) || 'AT' }), _jsx("span", { className: "footer__brand-name", children: name || 'Empresa' })] }), desc && _jsx("p", { className: "footer__brand-desc", children: desc })] }) }), _jsxs("div", { className: "footer__bottom", children: [_jsxs("p", { children: ["\u00A9 ", new Date().getFullYear(), " ", name || 'Empresa', ". Todos os direitos reservados."] }), cnpj && _jsx("p", { children: cnpj })] })] }) })] }));
 }

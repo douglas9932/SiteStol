@@ -8,7 +8,6 @@ const NAV_ITEMS = [
   { path: '/produtos',   label: 'Produtos'             },
   { path: '/noticias',   label: 'Notícias'             },
   { path: '/calibracao', label: 'Tabela de Calibração' },
-  { path: '/stol',       label: 'Testes STOL'          },
   { path: '/contatos',   label: 'Contatos'             },
 ];
 

@@ -50,10 +50,10 @@ export default function Footer() {
                         </div>
                       </div>
                       <ul className="footer__contact-list">
-                        {c.email   && <li><span>✉</span>{c.email}</li>}
-                        {c.phone   && <li><span>☎</span>{c.phone}</li>}
-                        {c.mobile  && <li><span>📱</span>{c.mobile}</li>}
-                        {c.address && <li><span>📍</span>{c.address}</li>}
+                        {c.email   && <li><span>✉</span><span className="footer__contact-text">{c.email}</span></li>}
+                        {c.phone   && <li><span>☎</span><span className="footer__contact-text">{c.phone}</span></li>}
+                        {c.mobile  && <li><span>📱</span><span className="footer__contact-text">{c.mobile}</span></li>}
+                        {c.address && <li><span>📍</span><span className="footer__contact-text">{c.address}</span></li>}
                       </ul>
                     </div>
                   );

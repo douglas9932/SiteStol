@@ -9,7 +9,6 @@ import ProdutoDetalhe from '@/pages/ProdutoDetalhe';
 import Noticias    from '@/pages/Noticias';
 import NoticiaDetalhe from '@/pages/NoticiaDetalhe';
 import TabelaCalibracao from '@/pages/TabelaCalibracao';
-import TestesStol  from '@/pages/TestesStol';
 import Contatos    from '@/pages/Contatos';
 import Login       from '@/pages/Login';
 import AdminHome   from '@/pages/admin/AdminHome';
@@ -48,7 +47,6 @@ export default function AppRouter() {
         <Route path="/noticias"      element={<Layout><Noticias /></Layout>} />
         <Route path="/noticias/:id"  element={<Layout><NoticiaDetalhe /></Layout>} />
         <Route path="/calibracao" element={<Layout><TabelaCalibracao /></Layout>} />
-        <Route path="/stol"       element={<Layout><TestesStol /></Layout>} />
         <Route path="/contatos"   element={<Layout><Contatos /></Layout>} />
 
         {/* ── Login — sem Navbar, acessível apenas por URL direta ── */}
@@ -60,4 +58,4 @@ export default function AppRouter() {
       </Routes>
     </>
   );
-}
+} 

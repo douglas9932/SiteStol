@@ -46,15 +46,20 @@ function PreviewBanner({ page }: { page: string }) {
 
 /* ── Preview: Home ── */
 function PreviewHome() {
-  const { content } = useContent();
-  const {
-    carouselImages = [], companyDescription = '',
-    carouselTagline, carouselTitle, carouselSubtitle,
-    sobreTitle, stats, featuresTitle, features,
-  } = content.draft.home;
+  const draft = (() => {
+    try { return JSON.parse(sessionStorage.getItem('home_preview_draft') ?? '{}'); }
+    catch { return {}; }
+  })();
 
-  const safeStats    = stats    ?? [];
-  const safeFeatures = features ?? [];
+  const carouselImages  = draft.carouselImages  ?? [];
+  const companyDescription = draft.companyDescription ?? '';
+  const carouselTagline = draft.carouselTagline ?? '';
+  const carouselTitle   = draft.carouselTitle   ?? '';
+  const carouselSubtitle = draft.carouselSubtitle ?? '';
+  const sobreTitle      = draft.sobreTitle      ?? '';
+  const safeStats       = draft.stats           ?? [];
+  const featuresTitle   = draft.featuresTitle   ?? '';
+  const safeFeatures    = draft.features        ?? [];
 
   return (
     <div className="page-wrapper" style={{ paddingTop: 0 }}>
@@ -69,7 +74,7 @@ function PreviewHome() {
               <p className="home__description">{companyDescription}</p>
             </div>
             <div className="home__stats">
-              {safeStats.map((s, i) => (
+              {safeStats.map((s: any, i: number) => (
                 <div key={i} className="home__stat-card">
                   <span className="home__stat-value">{s.value}</span>
                   <span className="home__stat-label">{s.label}</span>
@@ -87,7 +92,7 @@ function PreviewHome() {
             <h2 className="section-title" style={{ color: 'var(--white)' }}>{featuresTitle ?? 'Diferenciais'}</h2>
             <div className="section-divider" style={{ background: 'var(--gold)' }} />
             <div className="home__features-grid">
-              {safeFeatures.map((f, i) => (
+              {safeFeatures.map((f: any, i: number) => (
                 <div key={i} className="home__feature-card">
                   <div className="home__feature-icon">{f.icon}</div>
                   <h3 className="home__feature-title">{f.title}</h3>
@@ -105,12 +110,21 @@ function PreviewHome() {
 
 /* ── Preview: Sobre ── */
 function PreviewSobre() {
-  const { content } = useContent();
-  const { companyDescription = '' } = content.draft.home ?? {};
-  const {
-    heroTitle = '', heroSubtitle = '',
-    especialidades = [], timelineTitle = '', timeline = [],
-  } = content.draft.sobre ?? {};
+  const homeDraft = (() => {
+    try { return JSON.parse(sessionStorage.getItem('home_preview_draft') ?? '{}'); }
+    catch { return {}; }
+  })();
+  const sobreDraft = (() => {
+    try { return JSON.parse(sessionStorage.getItem('sobre_preview_draft') ?? '{}'); }
+    catch { return {}; }
+  })();
+
+  const companyDescription = homeDraft.companyDescription ?? '';
+  const heroTitle      = sobreDraft.heroTitle      ?? '';
+  const heroSubtitle   = sobreDraft.heroSubtitle   ?? '';
+  const especialidades = sobreDraft.especialidades ?? [];
+  const timelineTitle  = sobreDraft.timelineTitle  ?? '';
+  const timeline       = sobreDraft.timeline       ?? [];
 
   return (
     <div className="page-wrapper" style={{ paddingTop: 0 }}>
@@ -172,8 +186,15 @@ function PreviewSobre() {
 /* ── Preview: Produtos ── */
 function PreviewProdutos() {
   const { content } = useContent();
-  const { headline = '', subheadline = '', products = [] } = content.draft.products ?? {};
-  const categories = content.categories ?? [];
+  const draft = (() => {
+    try { return JSON.parse(sessionStorage.getItem('produtos_preview_draft') ?? '{}'); }
+    catch { return {}; }
+  })();
+
+  const headline    = draft.headline    ?? '';
+  const subheadline = draft.subheadline ?? '';
+  const products    = Array.isArray(draft.products) ? draft.products : [];
+  const categories  = content.categories ?? [];
 
   return (
     <div className="page-wrapper" style={{ paddingTop: 0 }}>
@@ -450,16 +471,18 @@ function PreviewContatos() {
 /* ── Preview: Empresa ── */
 function PreviewEmpresa() {
   const { content } = useContent();
-  const [draft, setDraft] = useState<any>(null);
+
+  // Lê do sessionStorage sincronamente para evitar render vazio
+  const [draft] = useState<any>(() => {
+    try {
+      return JSON.parse(sessionStorage.getItem('empresa_preview_draft') ?? '{}');
+    } catch { return {}; }
+  });
 
   useEffect(() => {
-    try {
-      const d = JSON.parse(sessionStorage.getItem('empresa_preview_draft') ?? '{}');
-      setDraft(d);
-      if (d.color_primary || d.color_secondary) applyCompanyColors(d);
-      if (d.name) document.title = `[Preview] ${d.name}`;
-    } catch {}
-  }, []);
+    if (draft.color_primary || draft.color_secondary) applyCompanyColors(draft);
+    if (draft.name) document.title = `[Preview] ${draft.name}`;
+  }, [draft]);
 
   const {
     carouselImages = [], companyDescription = '',
@@ -493,7 +516,7 @@ function PreviewEmpresa() {
             </div>
           </a>
           <div className="navbar__links">
-            {['Sobre','Produtos','Notícias','Calibração','Testes STOL','Contatos'].map(l => (
+            {['Sobre','Produtos','Notícias','Calibração','Contatos'].map(l => (
               <span key={l} className="navbar__link" style={{ cursor:'default' }}>{l}</span>
             ))}
           </div>
@@ -513,7 +536,7 @@ function PreviewEmpresa() {
               <p className="home__description">{companyDescription}</p>
             </div>
             <div className="home__stats">
-              {safeStats.map((s, i) => (
+              {safeStats.map((s: any, i: number) => (
                 <div key={i} className="home__stat-card">
                   <span className="home__stat-value">{s.value}</span>
                   <span className="home__stat-label">{s.label}</span>
@@ -528,7 +551,7 @@ function PreviewEmpresa() {
         <section className="home__features">
           <div className="container">
             <div className="home__features-grid">
-              {safeFeatures.map((f, i) => (
+              {safeFeatures.map((f: any, i: number) => (
                 <div key={i} className="home__feature-card">
                   <div className="home__feature-icon">{f.icon}</div>
                   <h3 className="home__feature-title">{f.title}</h3>
