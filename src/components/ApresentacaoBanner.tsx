@@ -4,11 +4,14 @@ import './ApresentacaoBanner.css';
 const IS_APR = import.meta.env.VITE_MODE === 'apresentacao';
 
 export default function ApresentacaoBanner() {
-  const [pos, setPos]       = useState({ x: 0, y: 0 });
-  const [ready, setReady]   = useState(false);
+  const [visible,  setVisible]  = useState(true);
+  const [countdown, setCountdown] = useState(0);
+  const [pos,      setPos]      = useState({ x: 0, y: 0 });
+  const [ready,    setReady]    = useState(false);
   const [dragging, setDragging] = useState(false);
-  const offset = useRef({ x: 0, y: 0 });
-  const ref    = useRef<HTMLDivElement>(null);
+  const offset  = useRef({ x: 0, y: 0 });
+  const ref     = useRef<HTMLDivElement>(null);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     if (!IS_APR) return;
@@ -21,6 +24,24 @@ export default function ApresentacaoBanner() {
     setReady(true);
   }, []);
 
+  // Fecha e reabre após 10s
+  const handleClose = () => {
+    setVisible(false);
+    setCountdown(10);
+    timerRef.current = setInterval(() => {
+      setCountdown(prev => {
+        if (prev <= 1) {
+          clearInterval(timerRef.current!);
+          setVisible(true);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  };
+
+  useEffect(() => () => { if (timerRef.current) clearInterval(timerRef.current); }, []);
+
   const startDrag = (clientX: number, clientY: number) => {
     setDragging(true);
     offset.current = { x: clientX - pos.x, y: clientY - pos.y };
@@ -29,11 +50,11 @@ export default function ApresentacaoBanner() {
   useEffect(() => {
     if (!dragging) return;
     const move = (e: MouseEvent | TouchEvent) => {
-      e.preventDefault(); // impede scroll ao arrastar no mobile
+      e.preventDefault();
       const { clientX, clientY } = 'touches' in e ? e.touches[0] : e;
-      const el  = ref.current;
-      const w   = el?.offsetWidth  ?? 340;
-      const h   = el?.offsetHeight ?? 110;
+      const el = ref.current;
+      const w  = el?.offsetWidth  ?? 340;
+      const h  = el?.offsetHeight ?? 110;
       setPos({
         x: Math.max(0, Math.min(clientX - offset.current.x, window.innerWidth  - w)),
         y: Math.max(0, Math.min(clientY - offset.current.y, window.innerHeight - h)),
@@ -55,35 +76,46 @@ export default function ApresentacaoBanner() {
   if (!IS_APR) return null;
 
   return (
-    <div
-      ref={ref}
-      className={`apr-window ${dragging ? 'apr-window--drag' : ''}`}
-      style={{ left: pos.x, top: pos.y, visibility: ready ? 'visible' : 'hidden' }}
-    >
-      {/* Barra de título — área de arrastar */}
-      <div
-        className="apr-window__titlebar"
-        onMouseDown={e => startDrag(e.clientX, e.clientY)}
-        onTouchStart={e => { e.preventDefault(); startDrag(e.touches[0].clientX, e.touches[0].clientY); }}
-      >
-        <div className="apr-window__dots">
-          <span className="apr-window__dot apr-window__dot--red"   />
-          <span className="apr-window__dot apr-window__dot--yellow"/>
-          <span className="apr-window__dot apr-window__dot--green" />
-        </div>
-        <span className="apr-window__titlebar-label">demo.apresentacao</span>
-        <div style={{ width: 48 }} />
-      </div>
+    <>
+      {/* Janela flutuante */}
+      {visible && (
+        <div
+          ref={ref}
+          className={`apr-window ${dragging ? 'apr-window--drag' : ''}`}
+          style={{ left: pos.x, top: pos.y, visibility: ready ? 'visible' : 'hidden' }}
+        >
+          <div
+            className="apr-window__titlebar"
+            onMouseDown={e => startDrag(e.clientX, e.clientY)}
+            onTouchStart={e => { e.preventDefault(); startDrag(e.touches[0].clientX, e.touches[0].clientY); }}
+          >
+            <div className="apr-window__dots">
+              <span className="apr-window__dot apr-window__dot--red"   />
+              <span className="apr-window__dot apr-window__dot--yellow"/>
+              <span className="apr-window__dot apr-window__dot--green" />
+            </div>
+            <span className="apr-window__titlebar-label">demo.apresentacao</span>
+            <button className="apr-window__close" onClick={handleClose} title="Fechar por 10s">✕</button>
+          </div>
 
-      {/* Corpo da janela */}
-      <div className="apr-window__body">
-        <div className="apr-window__icon">👁</div>
-        <div className="apr-window__text">
-          <p className="apr-window__title">Versão de Apresentação</p>
-          <p className="apr-window__sub">Ambiente de demonstração — visualização exclusiva para o cliente</p>
+          <div className="apr-window__body">
+            <div className="apr-window__icon">👁</div>
+            <div className="apr-window__text">
+              <p className="apr-window__title">Versão de Apresentação</p>
+              <p className="apr-window__sub">Ambiente de demonstração — visualização exclusiva para o cliente</p>
+            </div>
+          </div>
         </div>
-      </div>
-    </div>
+      )}
+
+      {/* Badge de contagem regressiva */}
+      {!visible && countdown > 0 && (
+        <div className="apr-countdown" onClick={() => { clearInterval(timerRef.current!); setVisible(true); setCountdown(0); }}>
+          <span className="apr-countdown__icon">👁</span>
+          <span className="apr-countdown__num">{countdown}s</span>
+        </div>
+      )}
+    </>
   );
 }
 

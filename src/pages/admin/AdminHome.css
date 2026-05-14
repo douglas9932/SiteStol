@@ -1511,88 +1511,75 @@
   border: 1px solid var(--border-gray);
 }
 
-/* ── Admin Sidebar — Mobile ── */
+/* ── Admin Mobile — Hambúrguer ── */
+.admin__mobile-toggle {
+  display: none;
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 1100;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: var(--navy-mid);
+  border: 2px solid rgba(200,151,42,0.4);
+  box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+  cursor: pointer;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 0;
+}
+
+.admin__mobile-toggle span {
+  display: block;
+  width: 22px;
+  height: 2px;
+  background: var(--gold);
+  border-radius: 2px;
+  transition: all 0.2s;
+}
+
+.admin__mobile-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.6);
+  z-index: 1050;
+}
+
 @media (max-width: 768px) {
-  .admin__layout {
-    flex-direction: column;
-    height: auto;
-    overflow: visible;
+  .admin__mobile-toggle {
+    display: flex;
+  }
+
+  .admin__mobile-overlay {
+    display: block;
   }
 
   .admin__sidebar {
-    width: 100%;
-    height: auto;
-    flex-direction: column;
-    overflow-y: visible;
-    border-right: none;
-    border-bottom: 1px solid rgba(200,151,42,0.15);
+    position: fixed;
+    left: -220px;
+    top: 0;
+    bottom: 0;
+    z-index: 1100;
+    width: 220px;
+    transition: left 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: none;
   }
 
-  .admin__sidebar-brand {
-    padding: 12px 16px;
-  }
-
-  .admin__sidebar-nav {
-    flex-direction: row;
-    flex-wrap: wrap;
-    gap: 4px;
-    padding: 8px 12px;
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-  }
-
-  .admin__sidebar-section-label {
-    display: none;
-  }
-
-  .admin__sidebar-item {
-    flex-shrink: 0;
-    padding: 6px 10px;
-    border-radius: var(--radius-sm);
-    font-size: 11px;
-  }
-
-  .admin__sidebar-item-label {
-    display: inline;
-    font-size: 11px;
-  }
-
-  .admin__sidebar-footer {
-    padding: 8px 12px;
-    flex-direction: row;
-    flex-wrap: wrap;
-    gap: 8px;
-    border-top: 1px solid rgba(200,151,42,0.1);
-  }
-
-  .admin__sidebar-acesso-btn {
-    flex: 1;
-    min-width: 140px;
-  }
-
-  .admin__sidebar-site-link {
-    white-space: nowrap;
+  .admin__sidebar--open {
+    left: 0;
+    box-shadow: 4px 0 24px rgba(0,0,0,0.5);
   }
 
   .admin__body {
-    height: auto;
-    overflow: visible;
+    margin-left: 0 !important;
   }
 
-  .admin__actionbar {
-    flex-wrap: wrap;
-    gap: 6px;
-  }
-}
-
-@media (max-width: 480px) {
-  .admin__sidebar-nav {
-    gap: 3px;
-    padding: 6px 8px;
-  }
-
-  .admin__sidebar-item {
-    padding: 5px 8px;
-    font-size: 10px;
+  .admin__layout {
+    height: 100vh;
+    overflow: hidden;
   }
 }

@@ -161,6 +161,7 @@ export default function AdminHome() {
     const [showModal, setShowModal] = useState(false);
     const [editingProductId, setEditingProductId] = useState(null);
     const [prodSearch, setProdSearch] = useState('');
+    const [showSidebar, setShowSidebar] = useState(false);
     const [showAcessoModal, setShowAcessoModal] = useState(false);
     // ── Empresa ──
     const [company, setCompany] = useState({ name: '', icon_url: '', color_primary: '#0a1628', color_secondary: '#c8972a', description: '', cnpj: '' });
@@ -561,7 +562,7 @@ export default function AdminHome() {
         { key: 'contatos', label: 'Contatos', icon: '📞' },
         { key: 'empresa', label: 'Empresa', icon: '🏢' },
     ];
-    return (_jsxs("div", { className: "admin", children: [showModal && _jsx(PublishModal, { page: activeTab, onConfirm: confirmPublish, onCancel: () => setShowModal(false) }), _jsxs("div", { className: "admin__layout", children: [_jsxs("aside", { className: "admin__sidebar", children: [_jsxs("div", { className: "admin__sidebar-brand", children: [company.icon_url
+    return (_jsxs("div", { className: "admin", children: [showModal && _jsx(PublishModal, { page: activeTab, onConfirm: confirmPublish, onCancel: () => setShowModal(false) }), _jsxs("div", { className: "admin__layout", children: [_jsxs("button", { className: "admin__mobile-toggle", onClick: () => setShowSidebar(v => !v), children: [_jsx("span", {}), _jsx("span", {}), _jsx("span", {})] }), showSidebar && (_jsx("div", { className: "admin__mobile-overlay", onClick: () => setShowSidebar(false) })), _jsxs("aside", { className: `admin__sidebar ${showSidebar ? 'admin__sidebar--open' : ''}`, children: [_jsxs("div", { className: "admin__sidebar-brand", children: [company.icon_url
                                         ? _jsx("img", { src: company.icon_url, alt: company.name, className: "admin__logo-img" })
                                         : _jsx("div", { className: "admin__logo", children: (company.name || 'AT').slice(0, 2).toUpperCase() }), _jsxs("div", { children: [_jsx("p", { className: "admin__title", children: company.name || 'Minha Empresa' }), _jsx("p", { className: "admin__subtitle", children: "Painel de Administra\u00E7\u00E3o" })] })] }), _jsxs("nav", { className: "admin__sidebar-nav", children: [_jsx("p", { className: "admin__sidebar-section-label", children: "Conte\u00FAdo" }), TABS.map(({ key, label, icon }) => {
                                         const hasDot = key !== 'categorias' && key !== activeTab && (() => {
@@ -593,7 +594,7 @@ export default function AdminHome() {
                                             }
                                             return false;
                                         })();
-                                        return (_jsxs("button", { className: `admin__sidebar-item ${activeTab === key ? 'admin__sidebar-item--active' : ''}`, onClick: () => setActiveTab(key), children: [_jsx("span", { className: "admin__sidebar-item-icon", children: icon }), _jsx("span", { className: "admin__sidebar-item-label", children: label }), hasDot && _jsx("span", { className: "admin__sidebar-dot" })] }, key));
+                                        return (_jsxs("button", { className: `admin__sidebar-item ${activeTab === key ? 'admin__sidebar-item--active' : ''}`, onClick: () => { setActiveTab(key); setShowSidebar(false); }, children: [_jsx("span", { className: "admin__sidebar-item-icon", children: icon }), _jsx("span", { className: "admin__sidebar-item-label", children: label }), hasDot && _jsx("span", { className: "admin__sidebar-dot" })] }, key));
                                     })] }), _jsxs("div", { className: "admin__sidebar-footer", children: [_jsxs("button", { className: "admin__sidebar-acesso-btn", onClick: () => setShowAcessoModal(true), children: [_jsx("span", { className: "admin__sidebar-acesso-avatar", children: (JSON.parse(sessionStorage.getItem('admin_auth') ?? '{}').name ?? 'A')[0].toUpperCase() }), _jsxs("div", { className: "admin__sidebar-acesso-info", children: [_jsx("span", { className: "admin__sidebar-acesso-name", children: JSON.parse(sessionStorage.getItem('admin_auth') ?? '{}').name ?? 'Administrador' }), _jsx("span", { className: "admin__sidebar-acesso-label", children: "Meu Acesso" })] }), _jsx("span", { className: "admin__sidebar-acesso-icon", children: "\u2699" })] }), _jsx("a", { href: "/", className: "admin__sidebar-site-link", target: "_blank", rel: "noreferrer", children: "\uD83C\uDF10 Ver site publicado" })] })] }), _jsxs("div", { className: "admin__content", children: [_jsxs("div", { className: "admin__actionbar", children: [_jsx("button", { className: "btn btn-ghost", style: { marginRight: 'auto', color: 'var(--gray-400)', fontSize: '12px' }, onClick: () => {
                                             sessionStorage.removeItem('admin_auth');
                                             navigate('/login', { replace: true });

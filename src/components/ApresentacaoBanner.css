@@ -123,3 +123,65 @@
 @media (max-width: 480px) {
   .apr-window { width: 300px; }
 }
+
+/* ── Botão fechar ── */
+.apr-window__close {
+  background: rgba(255,255,255,0.1);
+  border: none;
+  color: rgba(255,255,255,0.5);
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  font-size: 11px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s, color 0.15s;
+  flex-shrink: 0;
+}
+
+.apr-window__close:hover {
+  background: rgba(255,90,90,0.5);
+  color: white;
+}
+
+/* ── Badge contagem regressiva ── */
+.apr-countdown {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 99999;
+  background: linear-gradient(135deg, #0f4c8a, #1a6dbf);
+  color: white;
+  border-radius: 50px;
+  padding: 8px 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  box-shadow: 0 4px 20px rgba(15,76,138,0.5);
+  font-family: 'Montserrat', sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  user-select: none;
+  animation: aprFadeIn 0.2s ease;
+}
+
+.apr-countdown:hover {
+  opacity: 0.85;
+}
+
+.apr-countdown__icon { font-size: 15px; }
+
+.apr-countdown__num {
+  font-size: 13px;
+  font-weight: 800;
+  min-width: 24px;
+  text-align: center;
+}
+
+@keyframes aprFadeIn {
+  from { opacity: 0; transform: scale(0.8); }
+  to   { opacity: 1; transform: scale(1); }
+}

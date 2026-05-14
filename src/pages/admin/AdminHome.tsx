@@ -483,7 +483,8 @@ export default function AdminHome() {
   const [showModal,    setShowModal]    = useState(false);
   const [editingProductId, setEditingProductId] = useState<number | null>(null);
   const [prodSearch,       setProdSearch]        = useState('');
-  const [showAcessoModal,  setShowAcessoModal]   = useState(false);
+  const [showSidebar,      setShowSidebar]      = useState(false);
+  const [showAcessoModal,  setShowAcessoModal]  = useState(false);
 
   // ── Empresa ──
   const [company,         setCompany]         = useState<CompanySettings>({ name: '', icon_url: '', color_primary: '#0a1628', color_secondary: '#c8972a', description: '', cnpj: '' });
@@ -894,8 +895,18 @@ export default function AdminHome() {
       {/* ── Layout: sidebar + content ── */}
       <div className="admin__layout">
 
+        {/* Botão hambúrguer mobile */}
+        <button className="admin__mobile-toggle" onClick={() => setShowSidebar(v => !v)}>
+          <span /><span /><span />
+        </button>
+
+        {/* Overlay mobile */}
+        {showSidebar && (
+          <div className="admin__mobile-overlay" onClick={() => setShowSidebar(false)} />
+        )}
+
         {/* ── Sidebar ── */}
-        <aside className="admin__sidebar">
+        <aside className={`admin__sidebar ${showSidebar ? 'admin__sidebar--open' : ''}`}>
 
           {/* Logo panel */}
           <div className="admin__sidebar-brand">
@@ -945,7 +956,7 @@ export default function AdminHome() {
                 <button
                   key={key}
                   className={`admin__sidebar-item ${activeTab === key ? 'admin__sidebar-item--active' : ''}`}
-                  onClick={() => setActiveTab(key)}
+                  onClick={() => { setActiveTab(key); setShowSidebar(false); }}
                 >
                   <span className="admin__sidebar-item-icon">{icon}</span>
                   <span className="admin__sidebar-item-label">{label}</span>
