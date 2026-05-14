@@ -953,7 +953,7 @@
 
   .admin__sidebar-item-icon { font-size: 17px; }
 
-  .admin__sidebar-footer { display: none; }
+  .admin__sidebar-footer { display: block; } /* garantir que não seja ocultado */
 
   .admin__content { overflow: hidden; flex: 1; }
   .admin__scroll  { flex: 1; overflow-y: auto; }
@@ -1610,14 +1610,14 @@
     flex-shrink: 0 !important;
   }
 
-  /* Nav rola internamente */
+  /* Nav rola internamente — padding bottom para não ficar atrás do footer */
   .admin__sidebar-nav {
     flex: 1 1 0 !important;
     flex-direction: column !important;
     flex-wrap: nowrap !important;
     overflow-y: auto !important;
     -webkit-overflow-scrolling: touch;
-    padding: 0.75rem;
+    padding: 0.75rem 0.75rem 110px 0.75rem !important;
     gap: 4px;
     min-height: 0 !important;
   }
@@ -1648,12 +1648,17 @@
     flex-shrink: 0 !important;
   }
 
-  /* Footer fixo na base */
+  /* Footer ancorado absolutamente na base — nunca some */
   .admin__sidebar-footer {
-    flex-shrink: 0 !important;
-    border-top: 2px solid rgba(200,151,42,0.2);
-    padding: 0.85rem 0.75rem;
-    background: var(--navy-mid);
+    position: absolute !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    display: block !important;
+    border-top: 2px solid rgba(200,151,42,0.25) !important;
+    padding: 0.85rem 0.75rem !important;
+    background: var(--navy-mid) !important;
+    z-index: 10 !important;
   }
 
   .admin__sidebar-acesso-btn {
