@@ -29,6 +29,7 @@ export default function ApresentacaoBanner() {
   useEffect(() => {
     if (!dragging) return;
     const move = (e: MouseEvent | TouchEvent) => {
+      e.preventDefault(); // impede scroll ao arrastar no mobile
       const { clientX, clientY } = 'touches' in e ? e.touches[0] : e;
       const el  = ref.current;
       const w   = el?.offsetWidth  ?? 340;
@@ -41,7 +42,7 @@ export default function ApresentacaoBanner() {
     const up = () => setDragging(false);
     window.addEventListener('mousemove', move);
     window.addEventListener('mouseup',   up);
-    window.addEventListener('touchmove', move, { passive: true });
+    window.addEventListener('touchmove', move, { passive: false });
     window.addEventListener('touchend',  up);
     return () => {
       window.removeEventListener('mousemove', move);
@@ -63,7 +64,7 @@ export default function ApresentacaoBanner() {
       <div
         className="apr-window__titlebar"
         onMouseDown={e => startDrag(e.clientX, e.clientY)}
-        onTouchStart={e => startDrag(e.touches[0].clientX, e.touches[0].clientY)}
+        onTouchStart={e => { e.preventDefault(); startDrag(e.touches[0].clientX, e.touches[0].clientY); }}
       >
         <div className="apr-window__dots">
           <span className="apr-window__dot apr-window__dot--red"   />
