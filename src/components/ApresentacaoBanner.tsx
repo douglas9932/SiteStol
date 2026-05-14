@@ -108,13 +108,7 @@ export default function ApresentacaoBanner() {
         </div>
       )}
 
-      {/* Badge de contagem regressiva */}
-      {!visible && countdown > 0 && (
-        <div className="apr-countdown" onClick={() => { clearInterval(timerRef.current!); setVisible(true); setCountdown(0); }}>
-          <span className="apr-countdown__icon">👁</span>
-          <span className="apr-countdown__num">{countdown}s</span>
-        </div>
-      )}
+      {/* Sem badge — reabre sozinho após 10s */}
     </>
   );
 }

@@ -185,3 +185,60 @@
   from { opacity: 0; transform: scale(0.8); }
   to   { opacity: 1; transform: scale(1); }
 }
+
+@media (max-width: 480px) {
+  .apr-window {
+    width: 240px;
+  }
+  .apr-window__titlebar {
+    padding: 8px 10px;
+  }
+  .apr-window__titlebar-label {
+    font-size: 9px;
+  }
+  .apr-window__body {
+    padding: 14px;
+    gap: 10px;
+  }
+  .apr-window__icon {
+    font-size: 26px;
+  }
+  .apr-window__title {
+    font-size: 12px;
+  }
+  .apr-window__sub {
+    font-size: 9px;
+  }
+}
+
+/* ── Mobile — janela menor ── */
+@media (max-width: 480px) {
+  .apr-window {
+    width: 220px;
+  }
+
+  .apr-window__titlebar {
+    padding: 8px 10px;
+  }
+
+  .apr-window__titlebar-label {
+    font-size: 9px;
+  }
+
+  .apr-window__body {
+    padding: 12px 14px 16px;
+    gap: 10px;
+  }
+
+  .apr-window__icon {
+    font-size: 24px;
+  }
+
+  .apr-window__title {
+    font-size: 12px;
+  }
+
+  .apr-window__sub {
+    font-size: 9px;
+  }
+}

@@ -897,7 +897,8 @@ export default function AdminHome() {
 
         {/* Botão hambúrguer mobile */}
         <button className="admin__mobile-toggle" onClick={() => setShowSidebar(v => !v)}>
-          <span /><span /><span />
+          <span><i /><i /><i /></span>
+          {showSidebar ? 'Fechar' : 'Menu'}
         </button>
 
         {/* Overlay mobile */}
